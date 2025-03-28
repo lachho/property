@@ -13,6 +13,8 @@ import Auth from "./pages/Auth";
 import AdminDashboard from "./pages/AdminDashboard";
 import ClientDashboard from "./pages/ClientDashboard";
 import PropertyDetails from "./pages/PropertyDetails";
+import AdminClientView from "./pages/AdminClientView";
+import AdminPropertyEdit from "./pages/AdminPropertyEdit";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +35,11 @@ const App = () => (
             <Route path="/admin-dashboard" element={<AdminDashboard />} />
             <Route path="/client-dashboard" element={<ClientDashboard />} />
             <Route path="/property/:propertyId" element={<PropertyDetails />} />
+            
+            {/* Admin routes */}
+            <Route path="/admin/client/:clientId" element={<AdminClientView />} />
+            <Route path="/admin/property/:propertyId" element={<AdminPropertyEdit />} />
+            
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
