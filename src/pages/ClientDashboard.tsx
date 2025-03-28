@@ -6,7 +6,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Home, PieChart, BarChart, TrendingUp, Calendar } from 'lucide-react';
+import { Loader2, Home, PieChart, TrendingUp, Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { AreaChart, Area, LineChart, Line, BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell } from 'recharts';
@@ -235,7 +235,7 @@ const ClientDashboard = () => {
                     },
                   }}
                 >
-                  <PieChart>
+                  <RechartsPieChart>
                     <Pie
                       data={investmentDistribution}
                       cx="50%"
@@ -251,7 +251,7 @@ const ClientDashboard = () => {
                       ))}
                     </Pie>
                     <ChartTooltip content={<ChartTooltipContent />} />
-                  </PieChart>
+                  </RechartsPieChart>
                 </ChartContainer>
               </CardContent>
             </Card>
@@ -273,13 +273,13 @@ const ClientDashboard = () => {
                   },
                 }}
               >
-                <BarChart data={repaymentData}>
+                <RechartsBarChart data={repaymentData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
                   <YAxis />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Bar dataKey="amount" fill="#82ca9d" />
-                </BarChart>
+                </RechartsBarChart>
               </ChartContainer>
             </CardContent>
           </Card>
