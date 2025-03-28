@@ -1,14 +1,27 @@
 
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, User, LogOut } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user, profile, signOut } = useAuth();
+  const navigate = useNavigate();
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
+  };
+
+  const handleSignInClick = () => {
+    navigate('/auth');
+    if (isMenuOpen) setIsMenuOpen(false);
+  };
+
+  const handleSignOutClick = async () => {
+    await signOut();
+    if (isMenuOpen) setIsMenuOpen(false);
   };
 
   return (
@@ -30,9 +43,27 @@ const Navbar = () => {
           <Link to="/portfolio-manager" className="text-gray-800 hover:text-theme-blue font-medium transition-colors">
             Portfolio Manager
           </Link>
-          <Button className="bg-theme-blue hover:bg-theme-blue/90">
-            Sign In
-          </Button>
+          
+          {user ? (
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-gray-600">
+                {profile?.role === 'admin' ? 'Admin' : 'Client'}: {user.email}
+              </span>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleSignOutClick}
+                className="flex items-center gap-2"
+              >
+                <LogOut size={16} />
+                Sign Out
+              </Button>
+            </div>
+          ) : (
+            <Button onClick={handleSignInClick} className="bg-theme-blue hover:bg-theme-blue/90">
+              Sign In
+            </Button>
+          )}
         </div>
 
         {/* Mobile menu button */}
@@ -70,12 +101,31 @@ const Navbar = () => {
             >
               Portfolio Manager
             </Link>
-            <Button 
-              className="bg-theme-blue hover:bg-theme-blue/90 w-full"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Sign In
-            </Button>
+            
+            {user ? (
+              <>
+                <div className="p-2">
+                  <p className="text-sm text-gray-600">
+                    {profile?.role === 'admin' ? 'Admin' : 'Client'}: {user.email}
+                  </p>
+                </div>
+                <Button 
+                  variant="outline"
+                  onClick={handleSignOutClick}
+                  className="w-full flex items-center justify-center gap-2"
+                >
+                  <LogOut size={16} />
+                  Sign Out
+                </Button>
+              </>
+            ) : (
+              <Button 
+                className="bg-theme-blue hover:bg-theme-blue/90 w-full"
+                onClick={handleSignInClick}
+              >
+                Sign In
+              </Button>
+            )}
           </div>
         </div>
       )}

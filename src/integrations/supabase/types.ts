@@ -9,16 +9,151 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          created_at: string
+          date_of_birth: string | null
+          dependants: number | null
+          email: string
+          existing_loans: number | null
+          first_name: string | null
+          gross_income: number | null
+          id: string
+          last_name: string | null
+          marital_status: string | null
+          partner_income: number | null
+          phone: string | null
+          role: Database["public"]["Enums"]["user_role"]
+        }
+        Insert: {
+          created_at?: string
+          date_of_birth?: string | null
+          dependants?: number | null
+          email: string
+          existing_loans?: number | null
+          first_name?: string | null
+          gross_income?: number | null
+          id: string
+          last_name?: string | null
+          marital_status?: string | null
+          partner_income?: number | null
+          phone?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+        }
+        Update: {
+          created_at?: string
+          date_of_birth?: string | null
+          dependants?: number | null
+          email?: string
+          existing_loans?: number | null
+          first_name?: string | null
+          gross_income?: number | null
+          id?: string
+          last_name?: string | null
+          marital_status?: string | null
+          partner_income?: number | null
+          phone?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+        }
+        Relationships: []
+      }
+      properties: {
+        Row: {
+          address: string
+          area: number
+          baths: number
+          beds: number
+          created_at: string
+          description: string | null
+          features: string[] | null
+          growth_rate: number | null
+          id: string
+          image_url: string | null
+          name: string
+          price: number
+          rental_yield: number | null
+        }
+        Insert: {
+          address: string
+          area: number
+          baths: number
+          beds: number
+          created_at?: string
+          description?: string | null
+          features?: string[] | null
+          growth_rate?: number | null
+          id?: string
+          image_url?: string | null
+          name: string
+          price: number
+          rental_yield?: number | null
+        }
+        Update: {
+          address?: string
+          area?: number
+          baths?: number
+          beds?: number
+          created_at?: string
+          description?: string | null
+          features?: string[] | null
+          growth_rate?: number | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          price?: number
+          rental_yield?: number | null
+        }
+        Relationships: []
+      }
+      saved_properties: {
+        Row: {
+          created_at: string
+          id: string
+          property_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          property_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          property_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_properties_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_role: {
+        Args: {
+          user_id: string
+        }
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
+      is_admin: {
+        Args: {
+          user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      user_role: "client" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never

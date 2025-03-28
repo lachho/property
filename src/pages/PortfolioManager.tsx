@@ -1,28 +1,44 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import ClientDashboard from './ClientDashboard';
+import AdminDashboard from './AdminDashboard';
+import { Loader2 } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 
 const PortfolioManager = () => {
-  return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar />
-      <main className="flex-grow section-padding">
-        <div className="container-custom">
-          <h1 className="heading-lg mb-6">Portfolio Manager</h1>
-          <p className="text-lg text-gray-600 mb-8">
-            Manage your property portfolio, track investments, monitor client relationships, and visualize performance and goals.
-          </p>
-          <div className="p-8 bg-gray-50 rounded-lg border border-gray-200">
-            <p className="text-center text-gray-500">
-              Portfolio manager dashboard to be implemented.
-            </p>
+  const { user, profile, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      navigate('/auth');
+    }
+  }, [isLoading, user, navigate]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <main className="flex-grow flex items-center justify-center">
+          <div className="flex flex-col items-center justify-center gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-theme-blue" />
+            <p className="text-lg">Loading...</p>
           </div>
-        </div>
-      </main>
-      <Footer />
-    </div>
-  );
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null; // Will redirect in useEffect
+  }
+
+  // Render the appropriate dashboard based on the user's role
+  return profile?.role === 'admin' ? <AdminDashboard /> : <ClientDashboard />;
 };
 
 export default PortfolioManager;
