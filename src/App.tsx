@@ -20,12 +20,12 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
+  <BrowserRouter>
+    <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/borrowing-capacity" element={<BorrowingCapacity />} />
@@ -43,10 +43,10 @@ const App = () => (
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </BrowserRouter>
+        </TooltipProvider>
       </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
+    </QueryClientProvider>
+  </BrowserRouter>
 );
 
 export default App;
