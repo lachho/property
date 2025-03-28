@@ -12,6 +12,7 @@ import PortfolioManager from "./pages/PortfolioManager";
 import Auth from "./pages/Auth";
 import AdminDashboard from "./pages/AdminDashboard";
 import ClientDashboard from "./pages/ClientDashboard";
+import PropertyDetails from "./pages/PropertyDetails";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,6 +32,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/admin-dashboard" element={<AdminDashboard />} />
             <Route path="/client-dashboard" element={<ClientDashboard />} />
+            <Route path="/property/:propertyId" element={<PropertyDetails />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

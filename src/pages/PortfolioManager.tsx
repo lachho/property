@@ -37,8 +37,14 @@ const PortfolioManager = () => {
     return null; // Will redirect in useEffect
   }
 
-  // Render the appropriate dashboard based on the user's role
-  return profile?.role === 'admin' ? <AdminDashboard /> : <ClientDashboard />;
+  // Redirect to the appropriate dashboard page rather than rendering inline
+  if (profile?.role === 'admin') {
+    navigate('/admin-dashboard');
+    return null;
+  } else {
+    navigate('/client-dashboard');
+    return null;
+  }
 };
 
 export default PortfolioManager;
