@@ -278,7 +278,7 @@ const ClientDashboard = () => {
                   <XAxis dataKey="month" />
                   <YAxis />
                   <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="amount" fill="#82ca9d" />
+                  <Bar dataKey="amount" fill="#82ca9d" barSize={30} />
                 </RechartsBarChart>
               </ChartContainer>
             </CardContent>
