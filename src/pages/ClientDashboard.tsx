@@ -262,7 +262,7 @@ const ClientDashboard = () => {
               <CardTitle>Upcoming Repayments</CardTitle>
               <CardDescription>Next 6 months</CardDescription>
             </CardHeader>
-            <CardContent className="h-80">
+            <CardContent className="h-80 overflow-hidden">
               <ChartContainer
                 config={{
                   amount: {
@@ -278,7 +278,7 @@ const ClientDashboard = () => {
                   <XAxis dataKey="month" />
                   <YAxis />
                   <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="amount" fill="#82ca9d" barSize={30} />
+                  <Bar dataKey="amount" fill="#82ca9d" />
                 </RechartsBarChart>
               </ChartContainer>
             </CardContent>
