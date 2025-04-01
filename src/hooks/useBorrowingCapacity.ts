@@ -36,8 +36,16 @@ export const useBorrowingCapacity = () => {
     setIsSubmitting(true);
     
     try {
+      // Get existing user or create new record with UUID
+      const { data: existingUser } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', leadData.email)
+        .maybeSingle();
+      
       // 1. Store user in the database - using upsert for safety
       const { error: dbError } = await supabase.from('profiles').upsert({
+        id: existingUser?.id || crypto.randomUUID(), // Use existing ID or generate a new one
         first_name: leadData.name.split(' ')[0],
         last_name: leadData.name.split(' ').slice(1).join(' '),
         email: leadData.email,

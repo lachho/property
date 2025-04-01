@@ -44,11 +44,20 @@ const BorrowingCapacity = () => {
     },
   });
 
-  const onSubmit = async (data: z.infer<typeof formSchema>) => {
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      const calculatedCapacity = calculateCapacity(data);
+      // Create a properly typed BorrowingFormData object
+      const borrowingFormData: BorrowingFormData = {
+        grossIncome: values.grossIncome,
+        maritalStatus: values.maritalStatus,
+        partnerIncome: values.partnerIncome,
+        dependants: values.dependants,
+        existingLoans: values.existingLoans,
+      };
+      
+      const calculatedCapacity = calculateCapacity(borrowingFormData);
       setBorrowingCapacity(calculatedCapacity);
-      setFormData(data);
+      setFormData(borrowingFormData);
       setShowResults(true);
     } catch (error) {
       console.error("Error calculating borrowing capacity:", error);
