@@ -64,14 +64,18 @@ export default {
 					ring: 'hsl(var(--sidebar-ring))'
 				},
 				theme: {
-					'blue': {
-						DEFAULT: '#1a365d',
-						light: '#4299e1'
+					'warm': {
+						DEFAULT: '#C25E00',
+						light: '#F2994A'
+					},
+					'amber': {
+						DEFAULT: '#FFC107',
+						light: '#FFE082'
 					},
 					'gray': {
-						dark: '#222',
-						medium: '#718096',
-						light: '#e2e8f0'
+						dark: '#4A4A4A',
+						medium: '#8A8A8A',
+						light: '#E8E0D8'
 					}
 				}
 			},

@@ -36,21 +36,19 @@ export const useBorrowingCapacity = () => {
     setIsSubmitting(true);
     
     try {
-      // 1. Store user in the database
-      const { error: dbError } = await supabase.from('profiles').insert([
-        {
-          first_name: leadData.name.split(' ')[0],
-          last_name: leadData.name.split(' ').slice(1).join(' '),
-          email: leadData.email,
-          phone: leadData.phone,
-          gross_income: formData.grossIncome,
-          partner_income: formData.partnerIncome || null,
-          dependants: formData.dependants,
-          existing_loans: formData.existingLoans,
-          marital_status: formData.maritalStatus,
-          role: 'client'
-        }
-      ]);
+      // 1. Store user in the database - using upsert for safety
+      const { error: dbError } = await supabase.from('profiles').upsert({
+        first_name: leadData.name.split(' ')[0],
+        last_name: leadData.name.split(' ').slice(1).join(' '),
+        email: leadData.email,
+        phone: leadData.phone,
+        gross_income: formData.grossIncome,
+        partner_income: formData.partnerIncome || null,
+        dependants: formData.dependants,
+        existing_loans: formData.existingLoans,
+        marital_status: formData.maritalStatus,
+        role: 'client'
+      });
 
       if (dbError) throw dbError;
 

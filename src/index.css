@@ -7,44 +7,44 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 40 30% 98%;
+    --foreground: 30 10% 20%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 40 30% 99%;
+    --card-foreground: 30 10% 20%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 40 30% 99%;
+    --popover-foreground: 30 10% 20%;
 
-    --primary: 217 91% 23%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 25 80% 40%;
+    --primary-foreground: 40 30% 98%;
 
-    --secondary: 204 94% 57%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 35 80% 55%;
+    --secondary-foreground: 30 10% 20%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 30 15% 94%;
+    --muted-foreground: 30 10% 40%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 30 15% 94%;
+    --accent-foreground: 30 10% 20%;
 
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 40 30% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 30 15% 90%;
+    --input: 30 15% 90%;
+    --ring: 30 70% 45%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 35 30% 96%;
+    --sidebar-foreground: 30 10% 30%;
+    --sidebar-primary: 30 10% 15%;
+    --sidebar-primary-foreground: 35 30% 96%;
+    --sidebar-accent: 30 10% 94%;
+    --sidebar-accent-foreground: 30 10% 15%;
+    --sidebar-border: 35 15% 90%;
+    --sidebar-ring: 25 80% 45%;
   }
 }
 
@@ -64,11 +64,11 @@
   }
   
   .btn-primary {
-    @apply bg-theme-blue text-white px-6 py-3 rounded-md font-medium transition-all hover:bg-opacity-90 inline-flex items-center justify-center;
+    @apply bg-theme-warm text-white px-6 py-3 rounded-md font-medium transition-all hover:bg-opacity-90 inline-flex items-center justify-center;
   }
   
   .btn-secondary {
-    @apply bg-white text-theme-blue border border-theme-blue px-6 py-3 rounded-md font-medium transition-all hover:bg-theme-blue/5 inline-flex items-center justify-center;
+    @apply bg-white text-theme-warm border border-theme-warm px-6 py-3 rounded-md font-medium transition-all hover:bg-theme-warm/5 inline-flex items-center justify-center;
   }
   
   .section-padding {
@@ -88,6 +88,6 @@
   }
   
   .text-gradient {
-    @apply bg-gradient-to-r from-theme-blue to-theme-blue-light bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-theme-warm to-theme-warm-light bg-clip-text text-transparent;
   }
 }

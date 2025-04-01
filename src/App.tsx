@@ -15,6 +15,8 @@ import ClientDashboard from "./pages/ClientDashboard";
 import PropertyDetails from "./pages/PropertyDetails";
 import AdminClientView from "./pages/AdminClientView";
 import AdminPropertyEdit from "./pages/AdminPropertyEdit";
+import AddProperty from "./pages/AddProperty";
+import AssignProperty from "./pages/AssignProperty";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,6 +41,8 @@ const App = () => (
             {/* Admin routes */}
             <Route path="/admin/client/:clientId" element={<AdminClientView />} />
             <Route path="/admin/property/:propertyId" element={<AdminPropertyEdit />} />
+            <Route path="/add-property" element={<AddProperty />} />
+            <Route path="/assign-property" element={<AssignProperty />} />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

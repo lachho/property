@@ -6,7 +6,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, UserCog, Home, Plus } from 'lucide-react';
+import { Loader2, UserCog, Home, Plus, Link as LinkIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
@@ -140,7 +140,7 @@ const AdminDashboard = () => {
         <Navbar />
         <main className="flex-grow flex items-center justify-center">
           <div className="flex flex-col items-center justify-center gap-4">
-            <Loader2 className="h-8 w-8 animate-spin text-theme-blue" />
+            <Loader2 className="h-8 w-8 animate-spin text-theme-warm" />
             <p className="text-lg">Loading admin dashboard...</p>
           </div>
         </main>
@@ -205,10 +205,16 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">
-                  <Button size="sm" variant="outline" asChild>
+                  <Button size="sm" variant="outline" asChild className="bg-theme-warm/5 border-theme-warm text-theme-warm hover:bg-theme-warm/10 hover:text-theme-warm">
                     <Link to="/add-property">
                       <Plus className="mr-1 h-4 w-4" />
                       Add Property
+                    </Link>
+                  </Button>
+                  <Button size="sm" variant="outline" asChild className="bg-theme-warm/5 border-theme-warm text-theme-warm hover:bg-theme-warm/10 hover:text-theme-warm">
+                    <Link to="/assign-property">
+                      <LinkIcon className="mr-1 h-4 w-4" />
+                      Assign Property
                     </Link>
                   </Button>
                 </div>
@@ -273,6 +279,7 @@ const AdminDashboard = () => {
                             </Button>
                             <Button 
                               size="sm" 
+                              className="bg-theme-warm hover:bg-theme-warm/90"
                               onClick={() => navigate(`/admin/client/${client.id}`)}
                             >
                               View
@@ -342,6 +349,7 @@ const AdminDashboard = () => {
                           <TableCell>
                             <Button 
                               size="sm" 
+                              className="bg-theme-warm hover:bg-theme-warm/90"
                               onClick={() => navigate(`/property/${property.id}`)}
                             >
                               View
@@ -352,6 +360,17 @@ const AdminDashboard = () => {
                     )}
                   </TableBody>
                 </Table>
+              </div>
+              <div className="mt-4 flex justify-end">
+                <Button 
+                  className="bg-theme-warm hover:bg-theme-warm/90"
+                  asChild
+                >
+                  <Link to="/add-property">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add New Property
+                  </Link>
+                </Button>
               </div>
             </CardContent>
           </Card>
