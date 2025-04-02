@@ -34,21 +34,28 @@ const handler = async (req: Request): Promise<Response> => {
     // Log the received data
     console.log("Received mortgage report request:", requestData);
 
+    // Ensure all numeric values are properly converted to numbers
+    const loanAmount = Number(requestData.loanAmount);
+    const interestRate = Number(requestData.interestRate);
+    const loanTerm = Number(requestData.loanTerm);
+    const monthlyPayment = Number(requestData.monthlyPayment);
+    const totalInterest = Number(requestData.totalInterest);
+
     // Format the mortgage data for better readability
     const formattedLoanAmount = new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-    }).format(requestData.loanAmount);
+    }).format(loanAmount);
 
     const formattedMonthlyPayment = new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-    }).format(requestData.monthlyPayment);
+    }).format(monthlyPayment);
 
     const formattedTotalInterest = new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-    }).format(requestData.totalInterest);
+    }).format(totalInterest);
 
     // In a real implementation, you would send an email here
     // For now, we're just logging what would be sent
@@ -62,8 +69,8 @@ const handler = async (req: Request): Promise<Response> => {
       
       Loan Details:
       - Loan Amount: ${formattedLoanAmount}
-      - Interest Rate: ${requestData.interestRate}%
-      - Loan Term: ${requestData.loanTerm} years
+      - Interest Rate: ${interestRate}%
+      - Loan Term: ${loanTerm} years
       
       Payment Information:
       - Monthly Payment: ${formattedMonthlyPayment}

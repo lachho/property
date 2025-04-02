@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -76,7 +75,7 @@ const ClientDashboard = () => {
     defaultValues: {
       grossIncome: profile?.gross_income?.toString() || "",
       extraIncome: profile?.partner_income?.toString() || "",
-      monthlyExpenses: "2000", // Default value
+      monthlyExpenses: "2000", // Default value as a string
       existingLoans: profile?.existing_loans?.toString() || "",
     },
   });

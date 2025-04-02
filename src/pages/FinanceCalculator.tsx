@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -28,7 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Banknote, Home, Calendar, Info } from 'lucide-react';
 
-// Form validation schema
+// Form validation schema - properly transforming strings to numbers
 const formSchema = z.object({
   loanAmount: z.string().min(1, "Loan amount is required").transform(val => Number(val)),
   interestRate: z.string().min(1, "Interest rate is required").transform(val => Number(val)),
@@ -76,7 +75,7 @@ const FinanceCalculator = () => {
     },
   });
 
-  // Calculate mortgage repayment
+  // Calculate mortgage repayment - now using proper number types
   const calculateRepayment = (loanAmount: number, interestRate: number, loanTerm: number) => {
     // Convert annual rate to monthly rate
     const monthlyRate = interestRate / 100 / 12;
