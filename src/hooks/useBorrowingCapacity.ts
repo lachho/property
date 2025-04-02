@@ -23,7 +23,7 @@ export const useBorrowingCapacity = () => {
   const { toast } = useToast();
 
   const calculateCapacity = (data: BorrowingFormData): number => {
-    const totalIncome = data.grossIncome + (data.partnerIncome || 0);
+    const totalIncome = data.grossIncome + (data.partnerIncome || 0) - 5000 * data.dependants;
     const borrowingCapacity = totalIncome * 6 - data.existingLoans;
     return Math.max(0, borrowingCapacity);
   };
