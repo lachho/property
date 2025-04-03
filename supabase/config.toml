@@ -1,5 +1,8 @@
 
+# A string that will be used to configure the CORS headers.
 [functions]
-[functions.import_map]
-inherit_default_cors = true
+  [functions.import_map]
+  inherit_default_cors = true
+
+[functions.protocol]
 protocol = "http"

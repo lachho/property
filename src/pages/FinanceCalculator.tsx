@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,6 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { supabase } from '@/integrations/supabase/client';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const formSchema = z.object({
   loanAmount: z.string().min(1, { message: 'Loan amount is required' }),
@@ -18,11 +21,19 @@ const formSchema = z.object({
   paymentFrequency: z.string().min(1, { message: 'Payment frequency is required' }),
 });
 
+const contactFormSchema = z.object({
+  name: z.string().min(1, { message: 'Name is required' }),
+  email: z.string().email({ message: 'Valid email is required' }),
+  phone: z.string().min(1, { message: 'Phone number is required' }),
+});
+
 const FinanceCalculator = () => {
   const { toast } = useToast();
   const [results, setResults] = useState(null);
   const [amortizationData, setAmortizationData] = useState([]);
   const [activeTab, setActiveTab] = useState('mortgage');
+  const [showContactForm, setShowContactForm] = useState(false);
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -31,6 +42,15 @@ const FinanceCalculator = () => {
       interestRate: '5.5',
       loanTerm: '30',
       paymentFrequency: 'monthly',
+    },
+  });
+
+  const contactForm = useForm({
+    resolver: zodResolver(contactFormSchema),
+    defaultValues: {
+      name: '',
+      email: '',
+      phone: '',
     },
   });
 
@@ -127,6 +147,74 @@ const FinanceCalculator = () => {
     }
   };
 
+  const sendMortgageReport = async (contactData) => {
+    if (!results) return;
+    
+    setIsSubmittingReport(true);
+    
+    try {
+      // Generate a random password
+      const randomPassword = Math.random().toString(36).slice(-10);
+      
+      // Create a user through auth to bypass RLS
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: contactData.email,
+        password: randomPassword,
+        options: {
+          data: {
+            first_name: contactData.name.split(' ')[0],
+            last_name: contactData.name.split(' ').slice(1).join(' '),
+            phone: contactData.phone
+          }
+        }
+      });
+
+      if (authError) throw authError;
+      
+      // Get the current form values
+      const currentCalculation = form.getValues();
+      const processedValues = processFormValues(currentCalculation);
+      
+      // Send the email report using the edge function
+      const { error: emailError } = await supabase.functions.invoke('send-mortgage-report', {
+        body: {
+          name: contactData.name,
+          email: contactData.email,
+          phone: contactData.phone,
+          loanAmount: processedValues.loanAmount,
+          interestRate: processedValues.interestRate,
+          loanTerm: processedValues.loanTerm,
+          monthlyPayment: Number(results.paymentAmount),
+          totalPayment: Number(results.totalRepayment),
+          totalInterest: Number(results.totalInterest)
+        }
+      });
+
+      if (emailError) throw emailError;
+      
+      toast({
+        title: "Success!",
+        description: "Your detailed mortgage report will be emailed to you shortly."
+      });
+      
+      setShowContactForm(false);
+      
+      // Sign out automatically created user
+      if (authData?.user) {
+        await supabase.auth.signOut();
+      }
+    } catch (error) {
+      console.error("Error sending mortgage report:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to send your report. Please try again."
+      });
+    } finally {
+      setIsSubmittingReport(false);
+    }
+  };
+
   return (
     <div className="container mx-auto py-10">
       <h1 className="text-3xl font-bold mb-6">Finance Calculator</h1>
@@ -157,7 +245,7 @@ const FinanceCalculator = () => {
                         <FormItem>
                           <FormLabel>Loan Amount ($)</FormLabel>
                           <FormControl>
-                            <Input type="number" placeholder="500000" {...field} />
+                            <Input type="text" placeholder="500000" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -171,7 +259,7 @@ const FinanceCalculator = () => {
                         <FormItem>
                           <FormLabel>Interest Rate (%)</FormLabel>
                           <FormControl>
-                            <Input type="number" step="0.01" placeholder="5.5" {...field} />
+                            <Input type="text" step="0.01" placeholder="5.5" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -185,7 +273,7 @@ const FinanceCalculator = () => {
                         <FormItem>
                           <FormLabel>Loan Term (years)</FormLabel>
                           <FormControl>
-                            <Input type="number" placeholder="30" {...field} />
+                            <Input type="text" placeholder="30" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -221,28 +309,47 @@ const FinanceCalculator = () => {
               </Form>
               
               {results && (
-                <div className="mt-6 p-4 border rounded-md bg-muted">
-                  <h3 className="text-lg font-medium mb-2">Results</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Payment Amount</p>
-                      <p className="text-2xl font-bold">${results.paymentAmount}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {results.paymentsPerYear === 12 ? 'per month' : 
-                         results.paymentsPerYear === 26 ? 'per fortnight' : 'per week'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Total Repayment</p>
-                      <p className="text-2xl font-bold">${results.totalRepayment}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Total Interest</p>
-                      <p className="text-2xl font-bold">${results.totalInterest}</p>
+                <div className="mt-6">
+                  <div className="p-4 border rounded-md bg-muted mb-4">
+                    <h3 className="text-lg font-medium mb-2">Results</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Payment Amount</p>
+                        <p className="text-2xl font-bold">${results.paymentAmount}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {results.paymentsPerYear === 12 ? 'per month' : 
+                           results.paymentsPerYear === 26 ? 'per fortnight' : 'per week'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Total Repayment</p>
+                        <p className="text-2xl font-bold">${results.totalRepayment}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Total Interest</p>
+                        <p className="text-2xl font-bold">${results.totalInterest}</p>
+                      </div>
                     </div>
                   </div>
                   
-                  <div className="mt-6 h-80">
+                  <div className="p-4 border rounded-md bg-theme-warm/5 border-theme-warm mb-4">
+                    <div className="flex flex-col md:flex-row justify-between items-center">
+                      <div>
+                        <h3 className="text-lg font-medium">Want a detailed mortgage report?</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Get a personalized report with detailed breakdown and expert recommendations.
+                        </p>
+                      </div>
+                      <Button 
+                        className="mt-3 md:mt-0 bg-theme-warm hover:bg-theme-warm/90"
+                        onClick={() => setShowContactForm(true)}
+                      >
+                        Get Free Report
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="h-80">
                     <h4 className="text-md font-medium mb-2">Loan Balance Over Time</h4>
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart
@@ -293,6 +400,80 @@ const FinanceCalculator = () => {
           </Card>
         </TabsContent>
       </Tabs>
+      
+      <Dialog open={showContactForm} onOpenChange={setShowContactForm}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Get Your Detailed Mortgage Report</DialogTitle>
+            <DialogDescription>
+              Fill in your contact details and we'll send you a comprehensive mortgage report with personalized recommendations.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Form {...contactForm}>
+            <form onSubmit={contactForm.handleSubmit(sendMortgageReport)} className="space-y-4">
+              <FormField
+                control={contactForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Full Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="John Smith" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={contactForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" placeholder="john@example.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={contactForm.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="(123) 456-7890" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <DialogFooter className="mt-6">
+                <Button type="button" variant="outline" onClick={() => setShowContactForm(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSubmittingReport} className="bg-theme-warm hover:bg-theme-warm/90">
+                  {isSubmittingReport ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                      </svg>
+                      Sending...
+                    </>
+                  ) : "Send Report"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
