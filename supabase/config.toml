@@ -1,4 +1,5 @@
 
 [functions]
+[functions.import_map]
 inherit_default_cors = true
 protocol = "http"

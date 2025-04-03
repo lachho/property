@@ -1,414 +1,298 @@
 import React, { useState } from 'react';
-import Navbar from '@/components/Navbar';
-import Footer from '@/components/Footer';
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import * as z from "zod";
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Banknote, Home, Calendar, Info } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-// Form validation schema - properly transforming strings to numbers
 const formSchema = z.object({
-  loanAmount: z.string().min(1, "Loan amount is required").transform(val => Number(val)),
-  interestRate: z.string().min(1, "Interest rate is required").transform(val => Number(val)),
-  loanTerm: z.string().min(1, "Loan term is required").transform(val => Number(val)),
-});
-
-// Lead collection schema
-const leadSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  email: z.string().email("Invalid email address"),
-  phone: z.string().min(1, "Phone number is required"),
+  loanAmount: z.string().min(1, { message: 'Loan amount is required' }),
+  interestRate: z.string().min(1, { message: 'Interest rate is required' }),
+  loanTerm: z.string().min(1, { message: 'Loan term is required' }),
+  paymentFrequency: z.string().min(1, { message: 'Payment frequency is required' }),
 });
 
 const FinanceCalculator = () => {
   const { toast } = useToast();
-  const [showResults, setShowResults] = useState(false);
-  const [showLeadForm, setShowLeadForm] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [repaymentDetails, setRepaymentDetails] = useState({
-    monthlyPayment: 0,
-    totalPayment: 0,
-    totalInterest: 0,
-    loanAmount: 0,
-    interestRate: 0,
-    loanTerm: 0,
-  });
+  const [results, setResults] = useState(null);
+  const [amortizationData, setAmortizationData] = useState([]);
+  const [activeTab, setActiveTab] = useState('mortgage');
 
-  // Form
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      loanAmount: "",
-      interestRate: "",
-      loanTerm: "",
+      loanAmount: '500000',
+      interestRate: '5.5',
+      loanTerm: '30',
+      paymentFrequency: 'monthly',
     },
   });
 
-  // Lead Form
-  const leadForm = useForm<z.infer<typeof leadSchema>>({
-    resolver: zodResolver(leadSchema),
-    defaultValues: {
-      name: "",
-      email: "",
-      phone: "",
-    },
-  });
-
-  // Calculate mortgage repayment - now using proper number types
-  const calculateRepayment = (loanAmount: number, interestRate: number, loanTerm: number) => {
-    // Convert annual rate to monthly rate
-    const monthlyRate = interestRate / 100 / 12;
-    // Convert loan term to months
-    const termMonths = loanTerm * 12;
-    
-    // Calculate monthly payment using mortgage formula
-    const monthlyPayment = loanAmount * 
-      (monthlyRate * Math.pow(1 + monthlyRate, termMonths)) / 
-      (Math.pow(1 + monthlyRate, termMonths) - 1);
-    
-    const totalPayment = monthlyPayment * termMonths;
-    const totalInterest = totalPayment - loanAmount;
-    
+  // Convert string form values to numbers when processing them
+  const processFormValues = (data) => {
     return {
-      monthlyPayment,
-      totalPayment,
-      totalInterest,
-      loanAmount,
-      interestRate,
-      loanTerm
+      // Convert the string values to numbers
+      loanAmount: Number(data.loanAmount),
+      interestRate: Number(data.interestRate),
+      loanTerm: Number(data.loanTerm),
+      paymentFrequency: data.paymentFrequency,
     };
   };
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    const results = calculateRepayment(
-      Number(values.loanAmount),
-      Number(values.interestRate),
-      Number(values.loanTerm)
-    );
+  const calculateMortgage = (values) => {
+    const { loanAmount, interestRate, loanTerm, paymentFrequency } = values;
     
-    setRepaymentDetails(results);
-    setShowResults(true);
-  };
-
-  const handleRequestReport = () => {
-    setShowLeadForm(true);
-  };
-
-  const closeDialog = () => {
-    setShowResults(false);
-    setShowLeadForm(false);
-    leadForm.reset();
-  };
-
-  const submitLead = async (values: z.infer<typeof leadSchema>) => {
-    setIsSubmitting(true);
+    // Calculate payments based on frequency
+    let paymentsPerYear;
+    switch (paymentFrequency) {
+      case 'weekly':
+        paymentsPerYear = 52;
+        break;
+      case 'fortnightly':
+        paymentsPerYear = 26;
+        break;
+      case 'monthly':
+      default:
+        paymentsPerYear = 12;
+        break;
+    }
     
-    try {
-      // Generate a random password for the user
-      const randomPassword = Math.random().toString(36).slice(-10);
+    const totalPayments = loanTerm * paymentsPerYear;
+    const periodicInterestRate = (interestRate / 100) / paymentsPerYear;
+    
+    // Calculate periodic payment amount
+    const paymentAmount = loanAmount * 
+      (periodicInterestRate * Math.pow(1 + periodicInterestRate, totalPayments)) / 
+      (Math.pow(1 + periodicInterestRate, totalPayments) - 1);
+    
+    // Calculate total interest paid
+    const totalRepayment = paymentAmount * totalPayments;
+    const totalInterest = totalRepayment - loanAmount;
+    
+    // Generate amortization schedule for the chart
+    const amortizationSchedule = [];
+    let remainingPrincipal = loanAmount;
+    let yearlyData = [];
+    
+    for (let i = 1; i <= totalPayments; i++) {
+      const interestPayment = remainingPrincipal * periodicInterestRate;
+      const principalPayment = paymentAmount - interestPayment;
+      remainingPrincipal -= principalPayment;
       
-      // First create the user account through auth - this bypasses RLS
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: values.email,
-        password: randomPassword,
-        options: {
-          data: {
-            first_name: values.name.split(' ')[0],
-            last_name: values.name.split(' ').slice(1).join(' '),
-            phone: values.phone
-          }
-        }
-      });
-      
-      if (authError) throw authError;
-      
-      // Send email report using the edge function
-      const { error: emailError } = await supabase.functions.invoke('send-mortgage-report', {
-        body: {
-          name: values.name,
-          email: values.email,
-          phone: values.phone,
-          loanAmount: repaymentDetails.loanAmount,
-          interestRate: repaymentDetails.interestRate,
-          loanTerm: repaymentDetails.loanTerm,
-          monthlyPayment: repaymentDetails.monthlyPayment,
-          totalPayment: repaymentDetails.totalPayment,
-          totalInterest: repaymentDetails.totalInterest
-        }
-      });
-
-      if (emailError) throw emailError;
-
-      toast({
-        title: "Success!",
-        description: "Your detailed mortgage report will be emailed to you shortly."
-      });
-
-      closeDialog();
-      
-      // Sign out the user if they were automatically signed in
-      if (authData.user) {
-        await supabase.auth.signOut();
+      // Group data by year for the chart
+      if (i % paymentsPerYear === 0) {
+        const year = i / paymentsPerYear;
+        yearlyData.push({
+          year,
+          remainingPrincipal: Math.max(0, remainingPrincipal),
+          totalPaid: year * paymentsPerYear * paymentAmount,
+        });
       }
-    } catch (error: any) {
-      console.error("Error in lead submission:", error);
+    }
+    
+    setAmortizationData(yearlyData);
+    
+    return {
+      paymentAmount: paymentAmount.toFixed(2),
+      totalRepayment: totalRepayment.toFixed(2),
+      totalInterest: totalInterest.toFixed(2),
+      paymentsPerYear,
+      totalPayments,
+    };
+  };
+
+  const onSubmit = (data) => {
+    try {
+      const processedValues = processFormValues(data);
+      const results = calculateMortgage(processedValues);
+      setResults(results);
+      
+      toast({
+        title: "Calculation Complete",
+        description: "Your mortgage calculation has been updated.",
+      });
+    } catch (error) {
+      console.error("Calculation error:", error);
       toast({
         variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to submit your information. Please try again."
+        title: "Calculation Error",
+        description: "There was a problem with your calculation. Please check your inputs.",
       });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-amber-50">
-      <Navbar />
-      <main className="flex-grow section-padding">
-        <div className="container-custom">
-          <h1 className="heading-lg mb-6 text-amber-900">Mortgage Calculator</h1>
-          <p className="text-lg text-amber-800 mb-8">
-            Calculate your monthly mortgage payments, total interest, and more to plan your property financing effectively.
-          </p>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-            <Card className="p-6 bg-amber-100 border-amber-200 shadow-md">
-              <div className="flex items-center mb-4 text-amber-700">
-                <Home className="mr-2 h-5 w-5" />
-                <h3 className="text-lg font-semibold">Loan Amount</h3>
-              </div>
-              <p className="text-amber-600 text-sm mb-2">
-                Enter the total amount you plan to borrow for your property purchase.
-              </p>
-            </Card>
-
-            <Card className="p-6 bg-amber-100 border-amber-200 shadow-md">
-              <div className="flex items-center mb-4 text-amber-700">
-                <Banknote className="mr-2 h-5 w-5" />
-                <h3 className="text-lg font-semibold">Interest Rate</h3>
-              </div>
-              <p className="text-amber-600 text-sm mb-2">
-                The annual interest rate offered by your lender as a percentage.
-              </p>
-            </Card>
-
-            <Card className="p-6 bg-amber-100 border-amber-200 shadow-md">
-              <div className="flex items-center mb-4 text-amber-700">
-                <Calendar className="mr-2 h-5 w-5" />
-                <h3 className="text-lg font-semibold">Loan Term</h3>
-              </div>
-              <p className="text-amber-600 text-sm mb-2">
-                The number of years you'll take to repay the loan completely.
-              </p>
-            </Card>
-          </div>
-
-          <Card className="p-8 bg-white border-amber-200 shadow-md">
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <FormField
-                    control={form.control}
-                    name="loanAmount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-amber-800">Loan Amount ($)</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="e.g. 500000" {...field} className="border-amber-200 focus-visible:ring-amber-500" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+    <div className="container mx-auto py-10">
+      <h1 className="text-3xl font-bold mb-6">Finance Calculator</h1>
+      
+      <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="mortgage">Mortgage Calculator</TabsTrigger>
+          <TabsTrigger value="investment">Investment Calculator</TabsTrigger>
+          <TabsTrigger value="savings">Savings Calculator</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="mortgage" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Mortgage Calculator</CardTitle>
+              <CardDescription>
+                Calculate your mortgage repayments and see how much interest you'll pay over the life of your loan.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="loanAmount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Loan Amount ($)</FormLabel>
+                          <FormControl>
+                            <Input type="number" placeholder="500000" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="interestRate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Interest Rate (%)</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.01" placeholder="5.5" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="loanTerm"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Loan Term (years)</FormLabel>
+                          <FormControl>
+                            <Input type="number" placeholder="30" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="paymentFrequency"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Payment Frequency</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select frequency" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="weekly">Weekly</SelectItem>
+                              <SelectItem value="fortnightly">Fortnightly</SelectItem>
+                              <SelectItem value="monthly">Monthly</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                   
-                  <FormField
-                    control={form.control}
-                    name="interestRate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-amber-800">Interest Rate (%)</FormLabel>
-                        <FormControl>
-                          <Input type="number" step="0.01" placeholder="e.g. 4.5" {...field} className="border-amber-200 focus-visible:ring-amber-500" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="loanTerm"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-amber-800">Loan Term (years)</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="e.g. 30" {...field} className="border-amber-200 focus-visible:ring-amber-500" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="flex justify-center mt-6">
-                  <Button 
-                    type="submit" 
-                    className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-2 text-lg"
-                  >
-                    Calculate Repayments
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </Card>
-
-          {/* Result Dialog */}
-          <Dialog open={showResults} onOpenChange={setShowResults}>
-            <DialogContent className="bg-amber-50 border-amber-300 sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle className="text-center text-amber-900 text-xl">Your Mortgage Details</DialogTitle>
-                <DialogDescription className="text-center text-amber-700">
-                  Based on your inputs
-                </DialogDescription>
-              </DialogHeader>
+                  <Button type="submit" className="w-full">Calculate</Button>
+                </form>
+              </Form>
               
-              {!showLeadForm ? (
-                <div className="space-y-4">
-                  <div className="bg-white p-4 rounded-md border border-amber-200">
-                    <div className="text-center mb-4">
-                      <p className="text-amber-800 font-semibold">Monthly Repayment</p>
-                      <p className="text-2xl font-bold text-amber-900">
-                        ${repaymentDetails.monthlyPayment.toFixed(2)}
+              {results && (
+                <div className="mt-6 p-4 border rounded-md bg-muted">
+                  <h3 className="text-lg font-medium mb-2">Results</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Payment Amount</p>
+                      <p className="text-2xl font-bold">${results.paymentAmount}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {results.paymentsPerYear === 12 ? 'per month' : 
+                         results.paymentsPerYear === 26 ? 'per fortnight' : 'per week'}
                       </p>
                     </div>
-                    
-                    <div className="grid grid-cols-2 gap-4 text-sm text-amber-800">
-                      <div>
-                        <p className="font-medium">Loan Amount:</p>
-                        <p className="font-semibold">${repaymentDetails.loanAmount.toLocaleString()}</p>
-                      </div>
-                      <div>
-                        <p className="font-medium">Interest Rate:</p>
-                        <p className="font-semibold">{repaymentDetails.interestRate}%</p>
-                      </div>
-                      <div>
-                        <p className="font-medium">Loan Term:</p>
-                        <p className="font-semibold">{repaymentDetails.loanTerm} years</p>
-                      </div>
-                      <div>
-                        <p className="font-medium">Total Interest:</p>
-                        <p className="font-semibold">${repaymentDetails.totalInterest.toFixed(2)}</p>
-                      </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Repayment</p>
+                      <p className="text-2xl font-bold">${results.totalRepayment}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Interest</p>
+                      <p className="text-2xl font-bold">${results.totalInterest}</p>
                     </div>
                   </div>
                   
-                  <div className="bg-amber-100 p-4 rounded-md border border-amber-200 flex items-start">
-                    <Info className="h-5 w-5 mr-2 flex-shrink-0 text-amber-700 mt-0.5" />
-                    <p className="text-sm text-amber-800">
-                      Want to explore options to reduce your monthly payments or total interest? 
-                      Get a detailed mortgage report with personalized recommendations!
-                    </p>
+                  <div className="mt-6 h-80">
+                    <h4 className="text-md font-medium mb-2">Loan Balance Over Time</h4>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={amortizationData}
+                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="year" label={{ value: 'Years', position: 'insideBottomRight', offset: -5 }} />
+                        <YAxis label={{ value: 'Amount ($)', angle: -90, position: 'insideLeft' }} />
+                        <Tooltip formatter={(value) => ['$' + value.toLocaleString(), '']} />
+                        <Legend />
+                        <Line type="monotone" dataKey="remainingPrincipal" name="Remaining Balance" stroke="#8884d8" />
+                        <Line type="monotone" dataKey="totalPaid" name="Total Paid" stroke="#82ca9d" />
+                      </LineChart>
+                    </ResponsiveContainer>
                   </div>
-                  
-                  <div className="flex justify-center pt-2">
-                    <Button 
-                      onClick={handleRequestReport}
-                      className="bg-amber-600 hover:bg-amber-700 text-white"
-                    >
-                      Get My Free Detailed Report
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <p className="text-amber-800 mb-4 text-center">
-                    Please provide your contact details to receive your personalized mortgage report.
-                  </p>
-                  
-                  <Form {...leadForm}>
-                    <form onSubmit={leadForm.handleSubmit(submitLead)} className="space-y-4">
-                      <FormField
-                        control={leadForm.control}
-                        name="name"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-amber-800">Full Name</FormLabel>
-                            <FormControl>
-                              <Input placeholder="John Smith" {...field} className="border-amber-200" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <FormField
-                        control={leadForm.control}
-                        name="email"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-amber-800">Email Address</FormLabel>
-                            <FormControl>
-                              <Input type="email" placeholder="john@example.com" {...field} className="border-amber-200" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <FormField
-                        control={leadForm.control}
-                        name="phone"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-amber-800">Phone Number</FormLabel>
-                            <FormControl>
-                              <Input placeholder="0400 123 456" {...field} className="border-amber-200" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <div className="flex justify-center pt-2">
-                        <Button 
-                          type="submit"
-                          className="bg-amber-600 hover:bg-amber-700 text-white w-full"
-                          disabled={isSubmitting}
-                        >
-                          {isSubmitting ? 'Sending...' : 'Send Me The Report'}
-                        </Button>
-                      </div>
-                    </form>
-                  </Form>
                 </div>
               )}
-            </DialogContent>
-          </Dialog>
-        </div>
-      </main>
-      <Footer />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="investment">
+          <Card>
+            <CardHeader>
+              <CardTitle>Investment Calculator</CardTitle>
+              <CardDescription>
+                Calculate potential returns on your investments over time.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p>Investment calculator coming soon...</p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="savings">
+          <Card>
+            <CardHeader>
+              <CardTitle>Savings Calculator</CardTitle>
+              <CardDescription>
+                Plan your savings goals and see how your money can grow over time.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p>Savings calculator coming soon...</p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

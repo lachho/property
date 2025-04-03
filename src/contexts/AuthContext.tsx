@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -11,7 +10,7 @@ interface Profile {
   role: 'client' | 'admin';
   phone?: string;
   gross_income?: number;
-  partner_income?: number;
+  partner_income?: number | null;
   existing_loans?: number;
   dependants?: number;
   marital_status?: string;
@@ -161,11 +160,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Add the autoLoginAsAdmin function
   const autoLoginAsAdmin = async () => {
     setIsLoading(true);
     try {
-      // Use a test admin account for demo purposes
       const { error } = await supabase.auth.signInWithPassword({
         email: 'admin@example.com',
         password: 'password123',
