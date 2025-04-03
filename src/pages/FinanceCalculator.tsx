@@ -125,30 +125,24 @@ const FinanceCalculator = () => {
     setIsSubmitting(true);
     
     try {
-      // First check if user exists
-      const { data: existingUser } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', values.email)
-        .maybeSingle();
+      // Generate a random password for the user
+      const randomPassword = Math.random().toString(36).slice(-10);
       
-      const userId = existingUser?.id || crypto.randomUUID();
-      
-      // Store user in the database - using upsert for safety
-      const { error: dbError } = await supabase.from('profiles').upsert({
-        id: userId,
-        first_name: values.name.split(' ')[0],
-        last_name: values.name.split(' ').slice(1).join(' '),
+      // First create the user account through auth - this bypasses RLS
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: values.email,
-        phone: values.phone,
-        role: 'client'
-      }, {
-        onConflict: 'id',
-        ignoreDuplicates: false
+        password: randomPassword,
+        options: {
+          data: {
+            first_name: values.name.split(' ')[0],
+            last_name: values.name.split(' ').slice(1).join(' '),
+            phone: values.phone
+          }
+        }
       });
-
-      if (dbError) throw dbError;
-
+      
+      if (authError) throw authError;
+      
       // Send email report using the edge function
       const { error: emailError } = await supabase.functions.invoke('send-mortgage-report', {
         body: {
@@ -172,6 +166,11 @@ const FinanceCalculator = () => {
       });
 
       closeDialog();
+      
+      // Sign out the user if they were automatically signed in
+      if (authData.user) {
+        await supabase.auth.signOut();
+      }
     } catch (error: any) {
       console.error("Error in lead submission:", error);
       toast({

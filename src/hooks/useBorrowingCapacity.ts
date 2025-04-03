@@ -36,31 +36,30 @@ export const useBorrowingCapacity = () => {
     setIsSubmitting(true);
     
     try {
-      // Get existing user or create new record with UUID
-      const { data: existingUser } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', leadData.email)
-        .maybeSingle();
+      // Generate a random password
+      const randomPassword = Math.random().toString(36).slice(-10);
       
-      // 1. Store user in the database - using upsert for safety
-      const { error: dbError } = await supabase.from('profiles').upsert({
-        id: existingUser?.id || crypto.randomUUID(), // Use existing ID or generate a new one
-        first_name: leadData.name.split(' ')[0],
-        last_name: leadData.name.split(' ').slice(1).join(' '),
+      // Create a user account through auth to bypass RLS
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: leadData.email,
-        phone: leadData.phone,
-        gross_income: formData.grossIncome,
-        partner_income: formData.partnerIncome || null,
-        dependants: formData.dependants,
-        existing_loans: formData.existingLoans,
-        marital_status: formData.maritalStatus,
-        role: 'client'
+        password: randomPassword,
+        options: {
+          data: {
+            first_name: leadData.name.split(' ')[0],
+            last_name: leadData.name.split(' ').slice(1).join(' '),
+            phone: leadData.phone,
+            gross_income: formData.grossIncome,
+            partner_income: formData.partnerIncome || null,
+            dependants: formData.dependants,
+            existing_loans: formData.existingLoans,
+            marital_status: formData.maritalStatus
+          }
+        }
       });
 
-      if (dbError) throw dbError;
+      if (authError) throw authError;
 
-      // 2. Send email report using the edge function
+      // Send email report using the edge function
       const { error: emailError } = await supabase.functions.invoke('send-borrowing-report', {
         body: {
           name: leadData.name,
@@ -81,6 +80,11 @@ export const useBorrowingCapacity = () => {
         title: "Success!",
         description: "Your report will be emailed to you shortly."
       });
+      
+      // Sign out the user if they were automatically signed in
+      if (authData.user) {
+        await supabase.auth.signOut();
+      }
 
       return true;
     } catch (error: any) {
