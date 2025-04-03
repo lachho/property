@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -24,6 +25,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, userData?: any) => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (data: Partial<Profile>) => Promise<void>;
+  autoLoginAsAdmin: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -159,7 +161,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const value = { user, profile, isLoading, signIn, signUp, signOut, updateProfile };
+  // Add the autoLoginAsAdmin function
+  const autoLoginAsAdmin = async () => {
+    setIsLoading(true);
+    try {
+      // Use a test admin account for demo purposes
+      const { error } = await supabase.auth.signInWithPassword({
+        email: 'admin@example.com',
+        password: 'password123',
+      });
+      if (error) throw error;
+    } catch (error: any) {
+      console.error("Error in auto login:", error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const value = { 
+    user, 
+    profile, 
+    isLoading, 
+    signIn, 
+    signUp, 
+    signOut, 
+    updateProfile, 
+    autoLoginAsAdmin 
+  };
 
   return (
     <AuthContext.Provider value={value}>

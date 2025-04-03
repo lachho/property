@@ -1,702 +1,450 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import Navbar from '@/components/Navbar';
-import Footer from '@/components/Footer';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Loader2, Home, PieChart, TrendingUp, Calendar, Wallet, Plus, ChartBar, Info } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { AreaChart, Area, LineChart, Line, BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell } from 'recharts';
 import { useToast } from '@/hooks/use-toast';
-import { useFinancialData } from '@/hooks/useFinancialData';
-import { useBorrowingCapacity } from '@/hooks/useBorrowingCapacity';
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Loader2, Home, DollarSign, Briefcase, Users } from 'lucide-react';
+import { Tables } from '@/integrations/supabase/types';
 
-// Sample colors
-const COLORS = ['#f97316', '#f59e0b', '#84cc16', '#10b981', '#06b6d4', '#6366f1'];
+type Property = Tables<'properties'>;
 
-// Financial update form schema
+// Form schema for financial information
 const financialFormSchema = z.object({
-  grossIncome: z.string().min(1, "Income is required").transform(val => Number(val)),
-  extraIncome: z.string().optional().transform(val => val ? Number(val) : 0),
-  monthlyExpenses: z.string().min(1, "Monthly expenses is required").transform(val => Number(val)),
-  existingLoans: z.string().min(1, "Existing loans amount is required").transform(val => Number(val)),
+  grossIncome: z.string().transform(val => Number(val) || 0),
+  partnerIncome: z.string().transform(val => Number(val) || 0),
+  existingLoans: z.string().transform(val => Number(val) || 0),
+  dependants: z.string().transform(val => Number(val) || 0),
+  maritalStatus: z.string().optional(),
 });
 
 const ClientDashboard = () => {
-  const { user, profile, isLoading, signOut } = useAuth();
+  const { user, profile, updateProfile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [properties, setProperties] = useState([]);
-  const [isLoadingProperties, setIsLoadingProperties] = useState(true);
-  const [availableProperties, setAvailableProperties] = useState([]);
-  const [isLoadingAvailableProperties, setIsLoadingAvailableProperties] = useState(true);
-  const [showFinancialDialog, setShowFinancialDialog] = useState(false);
-  
-  const { 
-    isLoading: isLoadingFinancial, 
-    financialData, 
-    portfolioProperties,
-    calculatePropertyGrowth,
-    calculateMortgage,
-    calculateTotalPortfolioValue,
-    calculateTotalEquity,
-    calculateCashFlow
-  } = useFinancialData();
-  
-  const { calculateCapacity } = useBorrowingCapacity();
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedProperties, setSavedProperties] = useState<Property[]>([]);
 
-  // Financial update form
-  const financialForm = useForm<z.infer<typeof financialFormSchema>>({
+  // Initialize form with profile data
+  const form = useForm<z.infer<typeof financialFormSchema>>({
     resolver: zodResolver(financialFormSchema),
     defaultValues: {
-      grossIncome: profile?.gross_income?.toString() || "",
-      extraIncome: profile?.partner_income?.toString() || "",
-      monthlyExpenses: "2000", // Default value as a string
-      existingLoans: profile?.existing_loans?.toString() || "",
+      grossIncome: profile?.gross_income?.toString() || "0",
+      partnerIncome: profile?.partner_income?.toString() || "0",
+      existingLoans: profile?.existing_loans?.toString() || "0",
+      dependants: profile?.dependants?.toString() || "0",
+      maritalStatus: profile?.marital_status || "",
     },
   });
 
+  // Redirect if not logged in
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (!user) {
       navigate('/auth');
     }
-  }, [isLoading, user, navigate]);
+  }, [user, navigate]);
 
+  // Fetch saved properties
   useEffect(() => {
-    const fetchProperties = async () => {
+    const fetchSavedProperties = async () => {
       if (!user) return;
       
+      setIsLoading(true);
       try {
-        // Get saved properties for the current user
-        const { data: savedPropertiesData, error: savedPropertiesError } = await supabase
+        const { data: savedPropertyIds, error: savedError } = await supabase
           .from('saved_properties')
           .select('property_id')
           .eq('user_id', user.id);
         
-        if (savedPropertiesError) {
-          throw savedPropertiesError;
-        }
-
-        if (savedPropertiesData.length === 0) {
-          setProperties([]);
-          setIsLoadingProperties(false);
-          return;
-        }
-
-        const propertyIds = savedPropertiesData.map(item => item.property_id);
+        if (savedError) throw savedError;
         
-        // Get actual property data
-        const { data: propertiesData, error: propertiesError } = await supabase
-          .from('properties')
-          .select('*')
-          .in('id', propertyIds);
-        
-        if (propertiesError) {
-          throw propertiesError;
+        if (savedPropertyIds && savedPropertyIds.length > 0) {
+          const propertyIds = savedPropertyIds.map(item => item.property_id);
+          
+          const { data: properties, error: propertiesError } = await supabase
+            .from('properties')
+            .select('*')
+            .in('id', propertyIds);
+          
+          if (propertiesError) throw propertiesError;
+          
+          setSavedProperties(properties || []);
         }
-        
-        setProperties(propertiesData || []);
       } catch (error) {
-        console.error('Error fetching properties:', error);
+        console.error('Error fetching saved properties:', error);
         toast({
-          title: "Error fetching properties",
-          description: error.message,
-          variant: "destructive"
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load your saved properties."
         });
       } finally {
-        setIsLoadingProperties(false);
+        setIsLoading(false);
       }
     };
-
-    fetchProperties();
+    
+    fetchSavedProperties();
   }, [user, toast]);
 
-  useEffect(() => {
-    const fetchAvailableProperties = async () => {
-      if (!user) return;
+  // Handle form submission
+  const onSubmit = async (values: z.infer<typeof financialFormSchema>) => {
+    if (!user) return;
+    
+    setIsSaving(true);
+    try {
+      // Convert form values to numbers for database storage
+      const updatedProfile = {
+        gross_income: Number(values.grossIncome),
+        partner_income: Number(values.partnerIncome),
+        existing_loans: Number(values.existingLoans),
+        dependants: Number(values.dependants),
+        marital_status: values.maritalStatus
+      };
       
-      try {
-        // Get all properties not already saved by the user
-        const { data: savedPropertiesData } = await supabase
-          .from('saved_properties')
-          .select('property_id')
-          .eq('user_id', user.id);
-        
-        const savedIds = savedPropertiesData?.map(item => item.property_id) || [];
-        
-        const { data: allPropertiesData, error: propertiesError } = await supabase
-          .from('properties')
-          .select('*');
-        
-        if (propertiesError) {
-          throw propertiesError;
-        }
-        
-        // Filter out already saved properties
-        const available = allPropertiesData?.filter(
-          property => !savedIds.includes(property.id)
-        ) || [];
-        
-        setAvailableProperties(available);
-      } catch (error) {
-        console.error('Error fetching available properties:', error);
-        toast({
-          title: "Error fetching available properties",
-          description: error.message,
-          variant: "destructive"
-        });
-      } finally {
-        setIsLoadingAvailableProperties(false);
-      }
-    };
+      await updateProfile(updatedProfile);
+      
+      toast({
+        title: "Profile Updated",
+        description: "Your financial information has been saved."
+      });
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast({
+        variant: "destructive",
+        title: "Update Failed",
+        description: "There was a problem updating your profile."
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
-    fetchAvailableProperties();
-  }, [user, toast, properties]);
-
-  const viewPropertyDetails = (propertyId) => {
+  // Handle property click
+  const handlePropertyClick = (propertyId: string) => {
     navigate(`/property/${propertyId}`);
   };
 
-  const addPropertyToPortfolio = async (propertyId) => {
+  // Remove property from saved list
+  const handleRemoveProperty = async (propertyId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!user) return;
     
     try {
       const { error } = await supabase
         .from('saved_properties')
-        .insert({
-          user_id: user.id,
-          property_id: propertyId
-        });
+        .delete()
+        .eq('user_id', user.id)
+        .eq('property_id', propertyId);
       
       if (error) throw error;
       
-      // Refresh properties lists
-      setIsLoadingProperties(true);
-      setIsLoadingAvailableProperties(true);
-      
-      // Fetch updated properties
-      const { data: propertiesData } = await supabase
-        .from('properties')
-        .select('*')
-        .eq('id', propertyId)
-        .single();
-      
-      if (propertiesData) {
-        setProperties(prev => [...prev, propertiesData]);
-        setAvailableProperties(prev => prev.filter(p => p.id !== propertyId));
-      }
+      setSavedProperties(prev => prev.filter(property => property.id !== propertyId));
       
       toast({
-        title: "Property added",
-        description: "The property has been added to your portfolio."
+        title: "Property Removed",
+        description: "Property has been removed from your saved list."
       });
     } catch (error) {
-      console.error('Error adding property:', error);
+      console.error('Error removing property:', error);
       toast({
-        title: "Error adding property",
-        description: error.message,
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoadingProperties(false);
-      setIsLoadingAvailableProperties(false);
-    }
-  };
-
-  const updateFinancialInfo = async (values) => {
-    if (!user || !profile) return;
-    
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          gross_income: values.grossIncome,
-          partner_income: values.extraIncome,
-          existing_loans: values.existingLoans
-        })
-        .eq('id', user.id);
-      
-      if (error) throw error;
-      
-      toast({
-        title: "Financial Info Updated",
-        description: "Your financial information has been updated successfully."
-      });
-      
-      setShowFinancialDialog(false);
-    } catch (error) {
-      console.error('Error updating financial info:', error);
-      toast({
+        variant: "destructive",
         title: "Error",
-        description: error.message,
-        variant: "destructive"
+        description: "Failed to remove the property."
       });
     }
   };
 
-  // Calculate borrowing capacity for the user based on profile data
-  const userBorrowingCapacity = profile ? calculateCapacity({
-    grossIncome: profile.gross_income || 0,
-    maritalStatus: profile.marital_status || 'single',
-    partnerIncome: profile.partner_income || 0,
-    dependants: profile.dependants || 0,
-    existingLoans: profile.existing_loans || 0
-  }) : 0;
-
-  if (isLoading || isLoadingFinancial) {
+  if (!profile) {
     return (
-      <div className="min-h-screen flex flex-col bg-amber-50">
+      <div className="min-h-screen flex flex-col">
         <Navbar />
         <main className="flex-grow flex items-center justify-center">
-          <div className="flex flex-col items-center justify-center gap-4">
-            <Loader2 className="h-8 w-8 animate-spin text-amber-600" />
-            <p className="text-lg text-amber-800">Loading...</p>
-          </div>
+          <Loader2 className="h-8 w-8 animate-spin text-theme-blue" />
         </main>
         <Footer />
       </div>
     );
   }
 
-  if (!user || !profile) {
-    return null; // Will redirect in useEffect
-  }
-
   return (
-    <div className="min-h-screen flex flex-col bg-amber-50">
+    <div className="min-h-screen flex flex-col">
       <Navbar />
-      <main className="flex-grow section-padding py-8">
-        <div className="container-custom">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="heading-lg text-amber-900">Your Property Portfolio</h1>
-            <Button variant="outline" onClick={signOut} className="border-amber-600 text-amber-800 hover:bg-amber-100">Log Out</Button>
+      <main className="flex-grow py-8 px-4 bg-gray-50">
+        <div className="container mx-auto max-w-6xl">
+          <h1 className="text-3xl font-bold text-gray-900 mb-6">Client Dashboard</h1>
+          
+          <div className="mb-6 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-800">
+                  Welcome, {profile.first_name || 'Client'}
+                </h2>
+                <p className="text-gray-600">
+                  Manage your property portfolio and financial information
+                </p>
+              </div>
+              <Button 
+                onClick={() => navigate('/portfolio-manager')}
+                className="bg-theme-blue hover:bg-theme-blue-dark"
+              >
+                Browse Properties
+              </Button>
+            </div>
           </div>
           
-          <Tabs defaultValue="portfolio" className="w-full mb-8">
-            <TabsList className="grid grid-cols-2 w-full max-w-md mx-auto mb-8 bg-amber-100">
-              <TabsTrigger value="portfolio" className="data-[state=active]:bg-amber-600 data-[state=active]:text-white">
-                My Portfolio
-              </TabsTrigger>
-              <TabsTrigger value="explore" className="data-[state=active]:bg-amber-600 data-[state=active]:text-white">
-                Explore Properties
-              </TabsTrigger>
+          <Tabs defaultValue="properties" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsTrigger value="properties">Saved Properties</TabsTrigger>
+              <TabsTrigger value="financial">Financial Information</TabsTrigger>
             </TabsList>
             
-            <TabsContent value="portfolio" className="mt-0">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <Card className="bg-white border-amber-200 shadow-md">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg text-amber-900">Profile</CardTitle>
-                    <CardDescription className="text-amber-700">Your account information</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="font-medium text-amber-900">{profile.email}</p>
-                    <p className="text-sm text-amber-700">Role: {profile.role}</p>
-                    {profile.first_name && profile.last_name && (
-                      <p className="text-sm mt-2 text-amber-800">{profile.first_name} {profile.last_name}</p>
-                    )}
-                    <div className="mt-4">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => setShowFinancialDialog(true)}
-                        className="border-amber-400 text-amber-800 hover:bg-amber-100"
-                      >
-                        Update Financial Info
-                      </Button>
+            <TabsContent value="properties">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Your Saved Properties</CardTitle>
+                  <CardDescription>
+                    Properties you've saved for future reference
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {isLoading ? (
+                    <div className="flex justify-center py-8">
+                      <Loader2 className="h-8 w-8 animate-spin text-theme-blue" />
                     </div>
-                  </CardContent>
-                </Card>
-                
-                <Card className="bg-white border-amber-200 shadow-md">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg text-amber-900">Portfolio Summary</CardTitle>
-                    <CardDescription className="text-amber-700">Overview of your investments</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-2xl font-bold text-amber-900">${calculateTotalPortfolioValue().toLocaleString()}</p>
-                        <p className="text-sm text-amber-700">Total Value</p>
-                      </div>
-                      <div className="text-green-600 flex items-center">
-                        <TrendingUp className="mr-1 h-4 w-4" />
-                        <span>+4.2%</span>
-                      </div>
-                    </div>
-                    <div className="mt-4 grid grid-cols-2 gap-2">
-                      <div>
-                        <p className="text-sm text-amber-700">Equity</p>
-                        <p className="font-semibold text-amber-900">${calculateTotalEquity().toLocaleString()}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-amber-700">Monthly Cashflow</p>
-                        <p className="font-semibold text-amber-900">${calculateCashFlow().toLocaleString()}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card className="bg-white border-amber-200 shadow-md">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg text-amber-900">Borrowing Capacity</CardTitle>
-                    <CardDescription className="text-amber-700">Your estimated borrowing power</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-2xl font-bold text-amber-900">${userBorrowingCapacity.toLocaleString()}</p>
-                        <p className="text-sm text-amber-700">Estimated Capacity</p>
-                      </div>
-                      <Wallet className="h-8 w-8 text-amber-400" />
-                    </div>
-                    <div className="mt-4 text-sm text-amber-700">
-                      <p>Based on your current financial details</p>
-                      <div className="mt-2">
-                        <Button 
-                          variant="link" 
-                          size="sm" 
-                          onClick={() => navigate('/borrowing-capacity')}
-                          className="pl-0 text-amber-600 hover:text-amber-800"
+                  ) : savedProperties.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {savedProperties.map((property) => (
+                        <div 
+                          key={property.id}
+                          onClick={() => handlePropertyClick(property.id)}
+                          className="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer"
                         >
-                          Recalculate →
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-              
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                <Card className="bg-white border-amber-200 shadow-md">
-                  <CardHeader>
-                    <CardTitle className="text-amber-900">Portfolio Growth</CardTitle>
-                    <CardDescription className="text-amber-700">Value changes over time</CardDescription>
-                  </CardHeader>
-                  <CardContent className="h-80">
-                    <ChartContainer
-                      config={{
-                        value: {
-                          theme: {
-                            light: "#f97316",
-                            dark: "#f97316",
-                          },
-                        },
-                      }}
-                    >
-                      <AreaChart data={financialData.assets.map((value, index) => ({
-                        month: financialData.months[index],
-                        value
-                      }))} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#f97316" stopOpacity={0.8} />
-                            <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <XAxis dataKey="month" />
-                        <YAxis />
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Area type="monotone" dataKey="value" stroke="#f97316" fillOpacity={1} fill="url(#colorValue)" />
-                      </AreaChart>
-                    </ChartContainer>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-white border-amber-200 shadow-md">
-                  <CardHeader>
-                    <CardTitle className="text-amber-900">Income & Expenses</CardTitle>
-                    <CardDescription className="text-amber-700">Monthly breakdown</CardDescription>
-                  </CardHeader>
-                  <CardContent className="h-80">
-                    <ChartContainer
-                      config={{
-                        Income: {
-                          theme: {
-                            light: "#84cc16",
-                            dark: "#84cc16",
-                          },
-                        },
-                        Expenses: {
-                          theme: {
-                            light: "#f97316",
-                            dark: "#f97316",
-                          },
-                        },
-                      }}
-                    >
-                      <RechartsBarChart 
-                        data={financialData.months.map((month, index) => ({
-                          name: month,
-                          Income: financialData.income[index],
-                          Expenses: financialData.expenses[index]
-                        }))}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" />
-                        <YAxis />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Bar dataKey="Income" fill="#84cc16" />
-                        <Bar dataKey="Expenses" fill="#f97316" />
-                      </RechartsBarChart>
-                    </ChartContainer>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="mb-8">
-                <h2 className="text-2xl font-semibold mb-4 text-amber-900">Your Properties</h2>
-                {isLoadingProperties ? (
-                  <div className="flex items-center justify-center p-8">
-                    <Loader2 className="h-6 w-6 animate-spin mr-2 text-amber-600" />
-                    <span className="text-amber-800">Loading properties...</span>
-                  </div>
-                ) : properties.length === 0 ? (
-                  <Card className="p-6 bg-white border-amber-200">
-                    <div className="text-center">
-                      <p className="text-amber-700 mb-4">No saved properties yet</p>
-                      <Button
-                        onClick={() => document.getElementById('explore-tab-trigger')?.click()}
-                        className="bg-amber-600 hover:bg-amber-700 text-white"
-                      >
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Properties
-                      </Button>
-                    </div>
-                  </Card>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {properties.map((property) => (
-                      <Card key={property.id} className="overflow-hidden bg-white border-amber-200 shadow-md">
-                        <div className="h-48 bg-amber-100 relative">
-                          {property.image_url ? (
-                            <img 
-                              src={property.image_url} 
-                              alt={property.name} 
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="flex items-center justify-center h-full">
-                              <Home className="h-12 w-12 text-amber-400" />
-                            </div>
-                          )}
-                        </div>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-lg text-amber-900">{property.name}</CardTitle>
-                          <CardDescription className="text-amber-700">{property.address}</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="grid grid-cols-2 gap-2 mb-4">
-                            <div>
-                              <p className="text-sm text-amber-700">Price</p>
-                              <p className="font-semibold text-amber-900">${property.price.toLocaleString()}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-amber-700">Size</p>
-                              <p className="font-semibold text-amber-900">{property.area} m²</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-amber-700">Growth</p>
-                              <p className="font-semibold text-green-600">+{property.growth_rate || 4.2}%</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-amber-700">Yield</p>
-                              <p className="font-semibold text-amber-900">{property.rental_yield || 3.8}%</p>
+                          <div className="h-40 bg-gray-200 relative">
+                            {property.image_url ? (
+                              <img 
+                                src={property.image_url} 
+                                alt={property.name} 
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                                <Home className="h-12 w-12 text-gray-400" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="p-4">
+                            <h3 className="font-semibold text-gray-800 mb-1">{property.name}</h3>
+                            <p className="text-sm text-gray-600 mb-2">{property.address}</p>
+                            <div className="flex justify-between items-center">
+                              <span className="font-medium text-theme-blue">
+                                ${property.price.toLocaleString()}
+                              </span>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => handleRemoveProperty(property.id, e)}
+                              >
+                                Remove
+                              </Button>
                             </div>
                           </div>
-                          <Button 
-                            className="w-full bg-amber-600 hover:bg-amber-700 text-white" 
-                            onClick={() => viewPropertyDetails(property.id)}
-                          >
-                            View Details
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 px-4">
+                      <Home className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-800 mb-2">No saved properties</h3>
+                      <p className="text-gray-600 mb-4">
+                        You haven't saved any properties yet. Browse our listings to find your next investment.
+                      </p>
+                      <Button 
+                        onClick={() => navigate('/portfolio-manager')}
+                        className="bg-theme-blue hover:bg-theme-blue-dark"
+                      >
+                        Browse Properties
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </TabsContent>
             
-            <TabsContent value="explore" className="mt-0">
-              <div className="mb-6">
-                <h2 className="text-2xl font-semibold mb-4 text-amber-900">Explore Properties</h2>
-                <p className="text-amber-800 mb-6">
-                  Discover properties that match your investment criteria. Add them to your portfolio to see how they affect your financial outlook.
-                </p>
-                
-                {isLoadingAvailableProperties ? (
-                  <div className="flex items-center justify-center p-8">
-                    <Loader2 className="h-6 w-6 animate-spin mr-2 text-amber-600" />
-                    <span className="text-amber-800">Loading available properties...</span>
-                  </div>
-                ) : availableProperties.length === 0 ? (
-                  <Card className="p-6 bg-white border-amber-200">
-                    <p className="text-center text-amber-700">No more properties available for your portfolio</p>
-                  </Card>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {availableProperties.map((property) => (
-                      <Card key={property.id} className="overflow-hidden bg-white border-amber-200 shadow-md">
-                        <div className="h-48 bg-amber-100 relative">
-                          {property.image_url ? (
-                            <img 
-                              src={property.image_url} 
-                              alt={property.name} 
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="flex items-center justify-center h-full">
-                              <Home className="h-12 w-12 text-amber-400" />
-                            </div>
+            <TabsContent value="financial">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Financial Information</CardTitle>
+                  <CardDescription>
+                    Update your financial details to get more accurate borrowing estimates
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <FormField
+                          control={form.control}
+                          name="grossIncome"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Annual Gross Income ($)</FormLabel>
+                              <FormControl>
+                                <div className="relative">
+                                  <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                                  <Input 
+                                    type="number" 
+                                    placeholder="0" 
+                                    className="pl-10" 
+                                    {...field} 
+                                  />
+                                </div>
+                              </FormControl>
+                              <FormDescription>
+                                Your annual income before taxes
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
                           )}
-                        </div>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-lg text-amber-900">{property.name}</CardTitle>
-                          <CardDescription className="text-amber-700">{property.address}</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="grid grid-cols-2 gap-2 mb-4">
-                            <div>
-                              <p className="text-sm text-amber-700">Price</p>
-                              <p className="font-semibold text-amber-900">${property.price.toLocaleString()}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-amber-700">Size</p>
-                              <p className="font-semibold text-amber-900">{property.area} m²</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-amber-700">Growth</p>
-                              <p className="font-semibold text-green-600">+{property.growth_rate || 4.2}%</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-amber-700">Yield</p>
-                              <p className="font-semibold text-amber-900">{property.rental_yield || 3.8}%</p>
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button 
-                              className="flex-1 bg-white border-amber-600 text-amber-800 hover:bg-amber-100" 
-                              variant="outline"
-                              onClick={() => viewPropertyDetails(property.id)}
-                            >
-                              Details
-                            </Button>
-                            <Button 
-                              className="flex-1 bg-amber-600 hover:bg-amber-700 text-white" 
-                              onClick={() => addPropertyToPortfolio(property.id)}
-                            >
-                              Add to Portfolio
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </div>
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="partnerIncome"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Partner's Annual Income ($)</FormLabel>
+                              <FormControl>
+                                <div className="relative">
+                                  <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                                  <Input 
+                                    type="number" 
+                                    placeholder="0" 
+                                    className="pl-10" 
+                                    {...field} 
+                                  />
+                                </div>
+                              </FormControl>
+                              <FormDescription>
+                                If applicable
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="existingLoans"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Existing Loan Repayments ($/month)</FormLabel>
+                              <FormControl>
+                                <div className="relative">
+                                  <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                                  <Input 
+                                    type="number" 
+                                    placeholder="0" 
+                                    className="pl-10" 
+                                    {...field} 
+                                  />
+                                </div>
+                              </FormControl>
+                              <FormDescription>
+                                Monthly payments for existing loans
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="dependants"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Number of Dependants</FormLabel>
+                              <FormControl>
+                                <div className="relative">
+                                  <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                                  <Input 
+                                    type="number" 
+                                    placeholder="0" 
+                                    className="pl-10" 
+                                    {...field} 
+                                  />
+                                </div>
+                              </FormControl>
+                              <FormDescription>
+                                Children or others financially dependent on you
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="maritalStatus"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Marital Status</FormLabel>
+                              <Select 
+                                onValueChange={field.onChange} 
+                                defaultValue={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select marital status" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="single">Single</SelectItem>
+                                  <SelectItem value="married">Married</SelectItem>
+                                  <SelectItem value="defacto">De Facto</SelectItem>
+                                  <SelectItem value="divorced">Divorced</SelectItem>
+                                  <SelectItem value="widowed">Widowed</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormDescription>
+                                Your current marital status
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      
+                      <Button 
+                        type="submit" 
+                        className="bg-theme-blue hover:bg-theme-blue-dark"
+                        disabled={isSaving}
+                      >
+                        {isSaving ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Saving
+                          </>
+                        ) : (
+                          'Save Information'
+                        )}
+                      </Button>
+                    </form>
+                  </Form>
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
-
-          {/* Financial Update Dialog */}
-          <Dialog open={showFinancialDialog} onOpenChange={setShowFinancialDialog}>
-            <DialogContent className="sm:max-w-md bg-amber-50 border-amber-200">
-              <DialogHeader>
-                <DialogTitle className="text-amber-900">Update Financial Information</DialogTitle>
-              </DialogHeader>
-              
-              <Form {...financialForm}>
-                <form onSubmit={financialForm.handleSubmit(updateFinancialInfo)} className="space-y-4">
-                  <FormField
-                    control={financialForm.control}
-                    name="grossIncome"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-amber-800">Annual Gross Income ($)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g. 80000" {...field} className="border-amber-200" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={financialForm.control}
-                    name="extraIncome"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-amber-800">Partner/Additional Income ($)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g. 60000" {...field} className="border-amber-200" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={financialForm.control}
-                    name="monthlyExpenses"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-amber-800">Monthly Expenses ($)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g. 3000" {...field} className="border-amber-200" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={financialForm.control}
-                    name="existingLoans"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-amber-800">Existing Loans ($)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g. 400000" {...field} className="border-amber-200" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <DialogFooter>
-                    <Button type="submit" className="bg-amber-600 hover:bg-amber-700 text-white">
-                      Save Changes
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </Form>
-            </DialogContent>
-          </Dialog>
         </div>
       </main>
       <Footer />

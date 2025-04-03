@@ -102,9 +102,9 @@ const FinanceCalculator = () => {
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     const results = calculateRepayment(
-      values.loanAmount,
-      values.interestRate,
-      values.loanTerm
+      Number(values.loanAmount),
+      Number(values.interestRate),
+      Number(values.loanTerm)
     );
     
     setRepaymentDetails(results);
@@ -125,21 +125,26 @@ const FinanceCalculator = () => {
     setIsSubmitting(true);
     
     try {
-      // Get existing user or create new record
+      // First check if user exists
       const { data: existingUser } = await supabase
         .from('profiles')
         .select('id')
         .eq('email', values.email)
         .maybeSingle();
       
+      const userId = existingUser?.id || crypto.randomUUID();
+      
       // Store user in the database - using upsert for safety
       const { error: dbError } = await supabase.from('profiles').upsert({
-        id: existingUser?.id || crypto.randomUUID(), // Use existing ID or generate a new one
+        id: userId,
         first_name: values.name.split(' ')[0],
         last_name: values.name.split(' ').slice(1).join(' '),
         email: values.email,
         phone: values.phone,
         role: 'client'
+      }, {
+        onConflict: 'id',
+        ignoreDuplicates: false
       });
 
       if (dbError) throw dbError;
