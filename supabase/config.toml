@@ -11,4 +11,3 @@ verify_jwt = false
 
 [functions.send-mortgage-report]
 verify_jwt = false
-
