@@ -1,303 +1,203 @@
 
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 
-interface MortgageFormData {
+export interface MortgageFormData {
   loanAmount: number;
   interestRate: number;
   loanTerm: string;
-  repaymentFrequency: 'weekly' | 'fortnightly' | 'monthly';
-  loanType: 'principal_and_interest' | 'interest_only';
-  additionalRepayments?: number;
+  repaymentFrequency: "weekly" | "fortnightly" | "monthly";
+  loanType: "principal_and_interest" | "interest_only";
+  additionalRepayments: number;
 }
 
-interface LeadData {
+export interface LeadData {
   firstName: string;
   lastName: string;
   email: string;
   phone: string;
   purchaseTimeframe: string;
   privacyPolicy: boolean;
-  mortgageDetails: any; // This includes the form data and results
+  mortgageDetails: {
+    loanAmount: number;
+    interestRate: number;
+    loanTerm: string;
+    repaymentFrequency: "weekly" | "fortnightly" | "monthly";
+    loanType: "principal_and_interest" | "interest_only";
+    additionalRepayments: number;
+    results: any;
+  };
 }
 
 export const useMortgageCalculator = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { toast } = useToast();
 
-  // Calculate mortgage repayments based on form inputs
-  const calculateMortgage = (formData: MortgageFormData) => {
-    const { loanAmount, interestRate, loanTerm, repaymentFrequency, loanType, additionalRepayments = 0 } = formData;
+  const calculateMortgage = (data: MortgageFormData) => {
+    const { loanAmount, interestRate, loanTerm, repaymentFrequency, loanType, additionalRepayments } = data;
     
-    // Convert interest rate to decimal and then to per payment period
-    const years = parseInt(loanTerm);
-    const monthlyInterestRate = interestRate / 100 / 12;
+    // Convert interest rate from percentage to decimal
+    const rate = interestRate / 100;
     
-    // Calculate number of payment periods
-    let numberOfPayments = years * 12; // Monthly payments by default
-    let interestRatePerPeriod = monthlyInterestRate;
-    let additionalPerPeriod = additionalRepayments;
+    // Convert years to number of payment periods
+    const numberOfPayments = parseInt(loanTerm) * getPaymentsPerYear(repaymentFrequency);
     
-    if (repaymentFrequency === 'weekly') {
-      numberOfPayments = years * 52;
-      interestRatePerPeriod = interestRate / 100 / 52;
-      additionalPerPeriod = additionalRepayments * 12 / 52;
-    } else if (repaymentFrequency === 'fortnightly') {
-      numberOfPayments = years * 26;
-      interestRatePerPeriod = interestRate / 100 / 26;
-      additionalPerPeriod = additionalRepayments * 12 / 26;
-    }
+    // Calculate interest rate per payment period
+    const ratePerPeriod = rate / getPaymentsPerYear(repaymentFrequency);
     
-    // Calculate repayment amount using the formula
+    // Calculate repayment amount
     let repaymentAmount = 0;
-    if (loanType === 'interest_only') {
-      repaymentAmount = loanAmount * monthlyInterestRate;
-    } else {
-      repaymentAmount = loanAmount * 
-        (interestRatePerPeriod * Math.pow(1 + interestRatePerPeriod, numberOfPayments)) / 
-        (Math.pow(1 + interestRatePerPeriod, numberOfPayments) - 1);
-    }
     
-    // Convert back to monthly for display purposes
-    let monthlyRepayment = repaymentAmount;
-    if (repaymentFrequency === 'weekly') {
-      monthlyRepayment = repaymentAmount * 52 / 12;
-    } else if (repaymentFrequency === 'fortnightly') {
-      monthlyRepayment = repaymentAmount * 26 / 12;
+    if (loanType === "interest_only") {
+      repaymentAmount = loanAmount * ratePerPeriod;
+    } else {
+      // principal_and_interest: M = P[r(1+r)^n]/[(1+r)^n-1]
+      const numerator = ratePerPeriod * Math.pow(1 + ratePerPeriod, numberOfPayments);
+      const denominator = Math.pow(1 + ratePerPeriod, numberOfPayments) - 1;
+      repaymentAmount = loanAmount * (numerator / denominator);
     }
     
     // Calculate total repayments
-    const totalRepayments = repaymentAmount * numberOfPayments;
+    const regularTotalRepayments = repaymentAmount * numberOfPayments;
     
     // Calculate total interest
-    const totalInterest = totalRepayments - loanAmount;
+    const totalInterest = regularTotalRepayments - (loanType === "principal_and_interest" ? loanAmount : 0);
     
-    // Calculate payoff date
+    // Calculate time saved with additional repayments (if any)
+    let timeWithAdditionalRepayments = 0;
+    let interestSaved = 0;
+    
+    if (additionalRepayments > 0 && loanType === "principal_and_interest") {
+      const totalMonthlyRepayment = 
+        convertPaymentToMonthly(repaymentAmount, repaymentFrequency) + 
+        additionalRepayments;
+      
+      // Simplified calculation - in reality this would be more complex
+      const yearsWithAdditional = 
+        Math.log(totalMonthlyRepayment / (totalMonthlyRepayment - (loanAmount * (rate / 12)))) / 
+        Math.log(1 + (rate / 12));
+      
+      timeWithAdditionalRepayments = yearsWithAdditional * 12; // In months
+      
+      // Calculate interest saved
+      const totalRepaymentsWithAdditional = totalMonthlyRepayment * timeWithAdditionalRepayments;
+      interestSaved = totalInterest - (totalRepaymentsWithAdditional - loanAmount);
+    }
+    
+    // Calculate loan payoff date
+    const now = new Date();
     const payoffDate = new Date();
-    payoffDate.setFullYear(payoffDate.getFullYear() + years);
     
-    // Calculate principal and interest percentages
-    const principalPercentage = (loanAmount / totalRepayments) * 100;
-    const interestPercentage = (totalInterest / totalRepayments) * 100;
-    
-    // Calculate potential savings with additional repayments
-    let potentialSavings = 0;
-    if (additionalRepayments > 0 && loanType !== 'interest_only') {
-      // Simplified calculation for savings
-      // This is a rough approximation - a full amortization schedule would be more accurate
-      const reducedTerm = calculateReducedTerm(loanAmount, interestRatePerPeriod, repaymentAmount, additionalPerPeriod, numberOfPayments);
-      const reducedTotalPayments = (repaymentAmount + additionalPerPeriod) * reducedTerm;
-      potentialSavings = totalRepayments - reducedTotalPayments;
+    if (loanType === "principal_and_interest") {
+      if (additionalRepayments > 0 && timeWithAdditionalRepayments > 0) {
+        payoffDate.setMonth(now.getMonth() + Math.round(timeWithAdditionalRepayments));
+      } else {
+        payoffDate.setFullYear(now.getFullYear() + parseInt(loanTerm));
+      }
+    } else {
+      // For interest only, the loan is not paid off within the term
+      payoffDate.setFullYear(now.getFullYear() + parseInt(loanTerm));
     }
     
     return {
-      repaymentAmount: monthlyRepayment,
-      totalRepayments,
+      repaymentAmount,
+      repaymentFrequency,
+      totalRepayments: regularTotalRepayments,
       totalInterest,
       payoffDate,
-      principalPercentage,
-      interestPercentage,
-      potentialSavings: potentialSavings > 0 ? potentialSavings : undefined,
+      loanType,
+      additionalRepayments,
+      interestSaved: additionalRepayments > 0 ? interestSaved : 0,
+      timeSaved: additionalRepayments > 0 ? parseInt(loanTerm) * 12 - timeWithAdditionalRepayments : 0,
+      marketComparisonRate: (interestRate + 0.5) // Simplified - just adding 0.5% for comparison
     };
   };
   
-  // Helper function to calculate reduced term with additional repayments
-  const calculateReducedTerm = (principal: number, rate: number, payment: number, additionalPayment: number, originalTerm: number) => {
-    let balance = principal;
-    let term = 0;
-    
-    while (balance > 0 && term < originalTerm) {
-      term++;
-      balance = balance * (1 + rate) - payment - additionalPayment;
-      if (balance < 0) balance = 0;
-    }
-    
-    return term;
-  };
-
-  // Submit lead data to Supabase and send email
   const submitLead = async (data: LeadData) => {
-    setIsSubmitting(true);
-    
     try {
-      // 1. Create user account with email/password
-      const { error: signUpError, data: authData } = await supabase.auth.signUp({
-        email: data.email,
-        password: generateRandomPassword(), // Generate a secure random password
-        options: {
-          data: {
-            first_name: data.firstName,
-            last_name: data.lastName,
-            phone: data.phone
-          }
+      setIsSubmitting(true);
+      
+      // First, call the edge function to send the email
+      const { error: emailError } = await supabase.functions.invoke("send-mortgage-report", {
+        body: {
+          firstName: data.firstName,
+          email: data.email,
+          mortgageDetails: data.mortgageDetails
         }
       });
       
-      if (signUpError) throw signUpError;
+      if (emailError) throw emailError;
       
-      // 2. Update profile with financial details
-      if (authData.user) {
-        const mortgageDetails = data.mortgageDetails;
+      // Then, if the user doesn't already exist, create a new user account
+      const { data: existingUser } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', data.email)
+        .maybeSingle();
         
-        await supabase
-          .from('profiles')
-          .update({
-            first_name: data.firstName,
-            last_name: data.lastName,
-            phone: data.phone
-          })
-          .eq('id', authData.user.id);
-          
-        // 3. Send email with mortgage report (using send-email edge function)
-        const { error: emailError } = await supabase.functions.invoke('send-email', {
-          body: {
-            to: data.email,
-            subject: "Your Personalized Mortgage Report",
-            html: generateMortgageReportEmail(data),
-            from: "Property Pathfinder <noreply@example.com>"
+      if (!existingUser) {
+        // Create a new user with Supabase Auth
+        // Note: This normally would generate a confirmation email
+        // For development, disable email confirmation in Supabase dashboard
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: data.email,
+          password: generateRandomPassword(), // This would be replaced with a proper password flow
+          options: {
+            data: {
+              first_name: data.firstName,
+              last_name: data.lastName,
+              phone: data.phone,
+            }
           }
         });
         
-        if (emailError) {
-          console.error("Error sending email:", emailError);
-        }
+        if (authError) throw authError;
       }
       
-      toast({
-        title: "Success!",
-        description: "Your report has been sent to your email.",
-      });
-      
-      return true;
+      return { success: true };
     } catch (error) {
       console.error("Error submitting lead:", error);
-      
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "There was a problem submitting your information. Please try again.",
-      });
-      
-      return false;
+      return { success: false, error };
     } finally {
       setIsSubmitting(false);
     }
   };
   
-  // Generate a random secure password
+  // Helper function to get number of payments per year
+  const getPaymentsPerYear = (frequency: "weekly" | "fortnightly" | "monthly") => {
+    switch (frequency) {
+      case "weekly": return 52;
+      case "fortnightly": return 26;
+      case "monthly": return 12;
+    }
+  };
+  
+  // Helper function to convert any payment to monthly equivalent
+  const convertPaymentToMonthly = (
+    amount: number, 
+    frequency: "weekly" | "fortnightly" | "monthly"
+  ) => {
+    switch (frequency) {
+      case "weekly": return amount * 52 / 12;
+      case "fortnightly": return amount * 26 / 12;
+      case "monthly": return amount;
+    }
+  };
+  
+  // Helper to generate a random password
   const generateRandomPassword = () => {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()";
+    const length = 12;
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
     let password = "";
-    for (let i = 0; i < 12; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    for (let i = 0; i < length; i++) {
+      const randomIndex = Math.floor(Math.random() * charset.length);
+      password += charset[randomIndex];
     }
     return password;
   };
   
-  // Generate HTML email template for mortgage report
-  const generateMortgageReportEmail = (data: LeadData) => {
-    const { mortgageDetails, firstName } = data;
-    const results = mortgageDetails.results;
-    
-    const formatCurrency = (amount: number) => {
-      return new Intl.NumberFormat('en-AU', {
-        style: 'currency',
-        currency: 'AUD',
-        maximumFractionDigits: 0,
-      }).format(amount);
-    };
-    
-    return `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { text-align: center; margin-bottom: 30px; }
-            .header h1 { color: #2563eb; margin-bottom: 10px; }
-            .section { margin-bottom: 25px; }
-            .section h2 { color: #1e40af; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; }
-            .highlight { background-color: #f0f9ff; padding: 15px; border-radius: 5px; }
-            .repayment { font-size: 24px; font-weight: bold; color: #2563eb; }
-            table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-            table th, table td { padding: 10px; text-align: left; border-bottom: 1px solid #e5e7eb; }
-            .footer { margin-top: 30px; text-align: center; font-size: 14px; color: #6b7280; }
-            .cta-button { display: inline-block; background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 15px; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1>Your Personalized Mortgage Report</h1>
-              <p>Prepared exclusively for ${firstName}</p>
-            </div>
-            
-            <div class="section highlight">
-              <h2>Your Mortgage Summary</h2>
-              <p>Based on your inputs, here's what your mortgage looks like:</p>
-              <p>Monthly Repayment: <span class="repayment">${formatCurrency(results.repaymentAmount)}</span></p>
-              <p>Loan Amount: ${formatCurrency(mortgageDetails.loanAmount)}</p>
-              <p>Interest Rate: ${mortgageDetails.interestRate}%</p>
-              <p>Loan Term: ${mortgageDetails.loanTerm} years</p>
-            </div>
-            
-            <div class="section">
-              <h2>Key Insights</h2>
-              <table>
-                <tr>
-                  <th>Total Repayments</th>
-                  <td>${formatCurrency(results.totalRepayments)}</td>
-                </tr>
-                <tr>
-                  <th>Total Interest</th>
-                  <td>${formatCurrency(results.totalInterest)}</td>
-                </tr>
-                <tr>
-                  <th>Principal Percentage</th>
-                  <td>${results.principalPercentage.toFixed(2)}%</td>
-                </tr>
-                <tr>
-                  <th>Interest Percentage</th>
-                  <td>${results.interestPercentage.toFixed(2)}%</td>
-                </tr>
-                ${results.potentialSavings ? `
-                <tr>
-                  <th>Potential Savings with Additional Repayments</th>
-                  <td>${formatCurrency(results.potentialSavings)}</td>
-                </tr>
-                ` : ''}
-              </table>
-            </div>
-            
-            <div class="section">
-              <h2>Next Steps</h2>
-              <p>A mortgage specialist will contact you shortly to discuss your options and help you find the best mortgage solution for your needs.</p>
-              <p>In the meantime, here are some strategies to optimize your mortgage:</p>
-              <ul>
-                <li>Consider making additional repayments to reduce your interest and loan term</li>
-                <li>Set up an offset account to reduce interest calculations</li>
-                <li>Review your mortgage regularly to ensure you're getting the best rate</li>
-              </ul>
-              <center>
-                <a href="#" class="cta-button">Book a Free Consultation</a>
-              </center>
-            </div>
-            
-            <div class="footer">
-              <p>Property Pathfinder | 123 Finance Street, Sydney NSW 2000 | 1800 123 456</p>
-              <p>This is a personalized report based on the information you provided. Actual loan terms and conditions may vary.</p>
-            </div>
-          </div>
-        </body>
-      </html>
-    `;
-  };
-
   return {
     calculateMortgage,
     submitLead,
-    isSubmitting,
+    isSubmitting
   };
 };

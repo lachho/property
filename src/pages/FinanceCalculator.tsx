@@ -44,7 +44,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { Progress } from "@/components/ui/progress";
-import { useMortgageCalculator } from '@/hooks/useMortgageCalculator';
+import { useMortgageCalculator, MortgageFormData, LeadData } from '@/hooks/useMortgageCalculator';
 import { MortgageResultsDialog } from '@/components/MortgageResultsDialog';
 
 // Validations for the forms
@@ -115,7 +115,7 @@ const FinanceCalculator = () => {
       lastName: "",
       email: "",
       phone: "",
-      purchaseTimeframe: "",
+      purchaseTimeframe: "6-12 months", // Set a default value for the select
       privacyPolicy: false,
     },
   });
@@ -130,7 +130,7 @@ const FinanceCalculator = () => {
   // Watch form values for loan amount to update the slider
   const watchedLoanAmount = mortgageForm.watch("loanAmount");
 
-  const handleMortgageSubmit = (data: z.infer<typeof mortgageFormSchema>) => {
+  const handleMortgageSubmit = (data: MortgageFormData) => {
     const results = calculateMortgage(data);
     setCalculationResults(results);
     setShowResults(true);
@@ -140,13 +140,22 @@ const FinanceCalculator = () => {
     if (!calculationResults) return;
     
     try {
-      await submitLead({
-        ...data,
-        mortgageDetails: {
-          ...mortgageForm.getValues(),
-          results: calculationResults
-        }
-      });
+      const mortgageDetails = {
+        ...mortgageForm.getValues(),
+        results: calculationResults
+      };
+      
+      const leadData: LeadData = {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        phone: data.phone,
+        purchaseTimeframe: data.purchaseTimeframe,
+        privacyPolicy: data.privacyPolicy,
+        mortgageDetails: mortgageDetails
+      };
+      
+      await submitLead(leadData);
       
       // Show thank you message or redirect
       setShowLeadForm(false);

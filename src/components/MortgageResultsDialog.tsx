@@ -1,14 +1,16 @@
 
 import React from 'react';
-import { z } from "zod";
-import { UseFormReturn } from "react-hook-form";
-import { Loader2, ChevronsRight } from "lucide-react";
+import { UseFormReturn } from 'react-hook-form';
+import { CalendarRange, Download, ArrowRight, FileText, Loader2 } from 'lucide-react';
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
 import {
   Form,
   FormControl,
@@ -18,8 +20,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -27,25 +27,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Card,
-  CardContent,
-} from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 
-// Reuse the same lead form schema from FinanceCalculator
-const leadFormSchema = z.object({
-  firstName: z.string().min(2, "First name must be at least 2 characters"),
-  lastName: z.string().min(2, "Last name must be at least 2 characters"),
-  email: z.string().email("Please enter a valid email"),
-  phone: z.string().min(8, "Please enter a valid phone number"),
-  purchaseTimeframe: z.string().min(1, "Please select a timeframe"),
-  privacyPolicy: z.boolean().refine(val => val === true, {
-    message: "You must agree to the privacy policy",
-  }),
-});
-
-// Helper function to format currency
+// Format currency
 const formatCurrency = (amount: number): string => {
   return new Intl.NumberFormat('en-AU', {
     style: 'currency',
@@ -54,36 +38,14 @@ const formatCurrency = (amount: number): string => {
   }).format(amount);
 };
 
-// Helper to format percentage
-const formatPercentage = (value: number): string => {
-  return value.toFixed(2) + '%';
-};
-
-// Helper to format dates
-const formatDate = (date: Date): string => {
-  return new Intl.DateTimeFormat('en-AU', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  }).format(date);
-};
-
 interface MortgageResultsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  results: {
-    repaymentAmount: number;
-    totalRepayments: number;
-    totalInterest: number;
-    payoffDate: Date;
-    principalPercentage: number;
-    interestPercentage: number;
-    potentialSavings?: number;
-  };
+  results: any;
   onGetReportClick: () => void;
   showLeadForm: boolean;
-  leadForm: UseFormReturn<z.infer<typeof leadFormSchema>>;
-  onLeadSubmit: (data: z.infer<typeof leadFormSchema>) => void;
+  leadForm: UseFormReturn<any>;
+  onLeadSubmit: (data: any) => void;
   isSubmitting: boolean;
 }
 
@@ -95,146 +57,188 @@ export const MortgageResultsDialog: React.FC<MortgageResultsDialogProps> = ({
   showLeadForm,
   leadForm,
   onLeadSubmit,
-  isSubmitting,
+  isSubmitting
 }) => {
+  if (!results) return null;
+
+  const formatDate = (date: Date) => {
+    return new Intl.DateTimeFormat('en-AU', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    }).format(date);
+  };
+
+  const renderPaymentFrequency = (frequency: string) => {
+    switch (frequency) {
+      case 'weekly': return 'Weekly';
+      case 'fortnightly': return 'Fortnightly';
+      case 'monthly': return 'Monthly';
+      default: return frequency;
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md md:max-w-lg lg:max-w-2xl">
+      <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-center">Your Mortgage Repayment Results</DialogTitle>
+          <DialogTitle className="text-2xl">Your Mortgage Repayment Results</DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-col gap-6 py-4">
-          {!showLeadForm ? (
-            <>
-              <div className="text-center">
-                <div className="text-4xl font-bold text-primary mb-3">
+        {!showLeadForm ? (
+          <>
+            <div className="grid gap-6 py-4">
+              <div className="bg-blue-50 rounded-xl p-6 border border-blue-100">
+                <h3 className="text-lg font-medium text-blue-800 mb-2">
+                  Your {renderPaymentFrequency(results.repaymentFrequency)} Repayment
+                </h3>
+                <p className="text-4xl font-bold text-blue-900">
                   {formatCurrency(results.repaymentAmount)}
-                  <span className="text-lg font-normal text-gray-500 ml-2">per month</span>
+                  <span className="text-sm font-normal text-blue-700 ml-2">per {results.repaymentFrequency.slice(0, -2)}</span>
+                </p>
+                
+                <Separator className="my-4" />
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-blue-700">Total Repayments</p>
+                    <p className="text-xl font-semibold">{formatCurrency(results.totalRepayments)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-blue-700">Total Interest</p>
+                    <p className="text-xl font-semibold">{formatCurrency(results.totalInterest)}</p>
+                  </div>
                 </div>
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex flex-col gap-3">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Total Repayments:</span>
-                        <span className="font-semibold">{formatCurrency(results.totalRepayments)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Total Interest:</span>
-                        <span className="font-semibold">{formatCurrency(results.totalInterest)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Loan Payoff Date:</span>
-                        <span className="font-semibold">{formatDate(results.payoffDate)}</span>
-                      </div>
-                      {results.potentialSavings && (
-                        <div className="flex justify-between mt-2 text-green-600">
-                          <span>Potential Savings with Additional Repayments:</span>
-                          <span className="font-bold">{formatCurrency(results.potentialSavings)}</span>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="pt-6">
-                    <h3 className="font-medium mb-3">Payment Breakdown</h3>
-                    <div className="space-y-4">
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span>Principal</span>
-                          <span>{formatPercentage(results.principalPercentage)}</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2.5">
-                          <div 
-                            className="bg-primary h-2.5 rounded-full" 
-                            style={{ width: `${results.principalPercentage}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span>Interest</span>
-                          <span>{formatPercentage(results.interestPercentage)}</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2.5">
-                          <div 
-                            className="bg-orange-400 h-2.5 rounded-full" 
-                            style={{ width: `${results.interestPercentage}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
-                <h3 className="font-medium mb-3 text-lg">Get Your Personalized Repayment Strategy</h3>
-                <p className="text-gray-600 mb-4">
-                  Receive a detailed report with custom strategies to pay off your mortgage faster 
-                  and save on interest. Our mortgage specialists will analyze your situation and 
-                  provide tailored recommendations.
-                </p>
-                <Button 
-                  onClick={onGetReportClick} 
-                  className="w-full py-6" 
-                  size="lg"
-                >
-                  Get Your Free Personalized Report
-                  <ChevronsRight className="ml-2 h-5 w-5" />
-                </Button>
-              </div>
-            </>
-          ) : (
-            <div>
-              <h3 className="font-medium mb-4 text-lg text-center">Complete your details to receive your free report</h3>
-              <Separator className="my-4" />
-              <Form {...leadForm}>
-                <form onSubmit={leadForm.handleSubmit(onLeadSubmit)} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={leadForm.control}
-                      name="firstName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>First Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="John" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={leadForm.control}
-                      name="lastName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Last Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Smith" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+              
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="border rounded-lg p-4">
+                  <h3 className="font-medium mb-2 text-gray-700 flex items-center">
+                    <CalendarRange className="mr-2 h-5 w-5 text-blue-600" />
+                    Loan Details
+                  </h3>
+                  <div className="space-y-2">
+                    <p className="flex justify-between">
+                      <span className="text-gray-600">Loan Type:</span>
+                      <span className="font-medium">
+                        {results.loanType === 'interest_only' ? 'Interest Only' : 'Principal & Interest'}
+                      </span>
+                    </p>
+                    <p className="flex justify-between">
+                      <span className="text-gray-600">Payoff Date:</span>
+                      <span className="font-medium">{formatDate(results.payoffDate)}</span>
+                    </p>
+                    {results.additionalRepayments > 0 && (
+                      <>
+                        <p className="flex justify-between">
+                          <span className="text-gray-600">Additional Monthly:</span>
+                          <span className="font-medium">{formatCurrency(results.additionalRepayments)}</span>
+                        </p>
+                        <p className="flex justify-between">
+                          <span className="text-gray-600">Time Saved:</span>
+                          <span className="font-medium text-green-600">
+                            {Math.floor(results.timeSaved / 12)} years, {Math.round(results.timeSaved % 12)} months
+                          </span>
+                        </p>
+                        <p className="flex justify-between">
+                          <span className="text-gray-600">Interest Saved:</span>
+                          <span className="font-medium text-green-600">{formatCurrency(results.interestSaved)}</span>
+                        </p>
+                      </>
+                    )}
                   </div>
+                </div>
+                
+                <div className="border rounded-lg p-4">
+                  <h3 className="font-medium mb-2 text-gray-700">Market Comparison</h3>
+                  <div className="space-y-2">
+                    <p className="flex justify-between">
+                      <span className="text-gray-600">Your Rate:</span>
+                      <span className="font-medium">{results.marketComparisonRate - 0.5}%</span>
+                    </p>
+                    <p className="flex justify-between">
+                      <span className="text-gray-600">Average Market Rate:</span>
+                      <span className="font-medium">{results.marketComparisonRate}%</span>
+                    </p>
+                    <p className="mt-4 text-sm text-gray-500">
+                      Based on our analysis, your selected interest rate is lower than the current market average.
+                      Speak to our mortgage specialists to see if we can help secure this rate for you.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <DialogFooter className="flex flex-col sm:flex-row gap-3 mt-6">
+              <Button
+                variant="secondary" 
+                className="flex-1"
+                onClick={onOpenChange.bind(null, false)}
+              >
+                Close
+              </Button>
+              <Button 
+                className="flex-1 py-6 bg-theme-blue hover:bg-theme-blue/90"
+                onClick={onGetReportClick}
+              >
+                <div className="flex items-center justify-center">
+                  <FileText className="mr-2 h-5 w-5" />
+                  <span>Get Your Personalized Strategy Report</span>
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </div>
+              </Button>
+            </DialogFooter>
+          </>
+        ) : (
+          <div className="py-4">
+            <h3 className="text-lg font-medium mb-4 text-center">
+              Get Your Personalized Mortgage Strategy Report
+            </h3>
+            <p className="text-gray-500 mb-6 text-center">
+              Fill in your details below, and we'll send you a detailed report with personalized mortgage strategies.
+            </p>
+            
+            <Form {...leadForm}>
+              <form onSubmit={leadForm.handleSubmit(onLeadSubmit)} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={leadForm.control}
+                    name="firstName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>First Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="John" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   
+                  <FormField
+                    control={leadForm.control}
+                    name="lastName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Last Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Smith" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={leadForm.control}
                     name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Email</FormLabel>
+                        <FormLabel>Email Address</FormLabel>
                         <FormControl>
-                          <Input placeholder="john@example.com" type="email" {...field} />
+                          <Input type="email" placeholder="john.smith@example.com" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -248,74 +252,93 @@ export const MortgageResultsDialog: React.FC<MortgageResultsDialogProps> = ({
                       <FormItem>
                         <FormLabel>Phone Number</FormLabel>
                         <FormControl>
-                          <Input placeholder="0412 345 678" {...field} />
+                          <Input placeholder="0400 123 456" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  
-                  <FormField
-                    control={leadForm.control}
-                    name="purchaseTimeframe"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>When are you looking to purchase?</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select timeframe" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="0-3_months">0-3 months</SelectItem>
-                            <SelectItem value="3-6_months">3-6 months</SelectItem>
-                            <SelectItem value="6-12_months">6-12 months</SelectItem>
-                            <SelectItem value="12+_months">12+ months</SelectItem>
-                            <SelectItem value="just_researching">Just researching</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={leadForm.control}
-                    name="privacyPolicy"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 py-2">
+                </div>
+                
+                <FormField
+                  control={leadForm.control}
+                  name="purchaseTimeframe"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Property Purchase Timeframe</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                          <Checkbox
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
+                          <SelectTrigger>
+                            <SelectValue placeholder="When are you looking to purchase?" />
+                          </SelectTrigger>
                         </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel>
-                            I agree to the <a href="#" className="text-primary underline">privacy policy</a> and consent to being contacted about my mortgage options.
-                          </FormLabel>
-                          <FormMessage />
-                        </div>
-                      </FormItem>
-                    )}
-                  />
+                        <SelectContent>
+                          <SelectItem value="0-3 months">0-3 months</SelectItem>
+                          <SelectItem value="3-6 months">3-6 months</SelectItem>
+                          <SelectItem value="6-12 months">6-12 months</SelectItem>
+                          <SelectItem value="1-2 years">1-2 years</SelectItem>
+                          <SelectItem value="2+ years">2+ years</SelectItem>
+                          <SelectItem value="Just researching">Just researching</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={leadForm.control}
+                  name="privacyPolicy"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>
+                          I agree to the privacy policy and understand that my information will be used
+                          to contact me regarding mortgage options.
+                        </FormLabel>
+                        <FormMessage />
+                      </div>
+                    </FormItem>
+                  )}
+                />
+                
+                <div className="pt-4 flex flex-col sm:flex-row justify-end gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => onOpenChange(false)}
+                  >
+                    Cancel
+                  </Button>
                   
-                  <Button type="submit" className="w-full mt-6" disabled={isSubmitting}>
+                  <Button 
+                    type="submit" 
+                    className="bg-theme-blue hover:bg-theme-blue/90"
+                    disabled={isSubmitting}
+                  >
                     {isSubmitting ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Submitting...
                       </>
                     ) : (
-                      "Send Me My Free Report"
+                      <>
+                        <Download className="mr-2 h-4 w-4" />
+                        Send Me The Report
+                      </>
                     )}
                   </Button>
-                </form>
-              </Form>
-            </div>
-          )}
-        </div>
+                </div>
+              </form>
+            </Form>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
