@@ -1,141 +1,149 @@
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-// CORS headers
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
 
-// Handle OPTIONS preflight request
-export const corsOptionsHandler = (req: Request) => {
+serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      headers: corsHeaders,
-    })
-  }
-}
-
-// Create a Supabase client
-const supabaseAdmin = createClient(
-  Deno.env.get('SUPABASE_URL') ?? '',
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-)
-
-// Define the request body interface
-interface MortgageReportRequestBody {
-  email: string;
-  name?: string;
-  propertyPrice: number;
-  downPayment: number;
-  interestRate: number;
-  loanTerm: number;
-  monthlyPayment: number;
-  totalInterest: number;
-  totalCost: number;
-}
-
-Deno.serve(async (req) => {
-  // Handle CORS preflight request
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    // Parse the request body
-    const payload: MortgageReportRequestBody = await req.json()
-    
-    const { 
-      email, 
-      name, 
-      propertyPrice, 
-      downPayment, 
-      interestRate, 
-      loanTerm, 
-      monthlyPayment, 
-      totalInterest, 
-      totalCost 
-    } = payload
-    
-    if (!email) {
-      return new Response(
-        JSON.stringify({ error: 'Email is required' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
-    }
+    const { firstName, email, mortgageDetails } = await req.json();
 
-    console.log(`Preparing to send mortgage report to: ${email}`)
+    // Format currency for emails
+    const formatCurrency = (amount: number): string => {
+      return new Intl.NumberFormat('en-AU', {
+        style: 'currency',
+        currency: 'AUD',
+        maximumFractionDigits: 0,
+      }).format(amount);
+    };
+
+    const paymentFrequencyText = {
+      weekly: "Weekly",
+      fortnightly: "Fortnightly",
+      monthly: "Monthly"
+    }[mortgageDetails.repaymentFrequency] || "Monthly";
+
+    const loanTypeText = mortgageDetails.loanType === 'principal_and_interest' 
+      ? 'Principal and Interest' 
+      : 'Interest Only';
+
+    // Construct email content
+    const emailContent = `
+      <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background-color: #1a56db; color: white; padding: 20px; text-align: center; }
+            .content { padding: 20px; }
+            .footer { background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; }
+            .summary { background-color: #f3f4f6; padding: 15px; margin: 20px 0; }
+            table { width: 100%; border-collapse: collapse; }
+            table, th, td { border: 1px solid #e5e7eb; }
+            th, td { padding: 10px; text-align: left; }
+            th { background-color: #f9fafb; }
+            .highlight { font-weight: bold; color: #1a56db; }
+            .cta { background-color: #1a56db; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px; display: inline-block; margin-top: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>Your Personalized Mortgage Report</h1>
+            </div>
+            <div class="content">
+              <p>Dear ${firstName},</p>
+              
+              <p>Thank you for using our Mortgage Calculator. Here's your personalized report based on the details you provided:</p>
+              
+              <div class="summary">
+                <h2>Loan Summary</h2>
+                <p>Loan Amount: <span class="highlight">${formatCurrency(mortgageDetails.loanAmount)}</span></p>
+                <p>Interest Rate: <span class="highlight">${mortgageDetails.interestRate}%</span></p>
+                <p>Loan Term: <span class="highlight">${mortgageDetails.loanTerm} years</span></p>
+                <p>Repayment Type: <span class="highlight">${loanTypeText}</span></p>
+              </div>
+              
+              <h2>Repayment Details</h2>
+              <table>
+                <tr>
+                  <th>${paymentFrequencyText} Repayment</th>
+                  <td>${formatCurrency(mortgageDetails.results.repaymentAmount)}</td>
+                </tr>
+                <tr>
+                  <th>Total Interest</th>
+                  <td>${formatCurrency(mortgageDetails.results.totalInterest)}</td>
+                </tr>
+                <tr>
+                  <th>Total Repayments</th>
+                  <td>${formatCurrency(mortgageDetails.results.totalRepayments)}</td>
+                </tr>
+              </table>
+              
+              <h2>How This Compares</h2>
+              <p>Your selected interest rate of ${mortgageDetails.interestRate}% is ${mortgageDetails.interestRate < mortgageDetails.results.marketComparisonRate ? 'below' : 'above'} the current market average of ${mortgageDetails.results.marketComparisonRate}%.</p>
+              
+              <h2>Optimize Your Mortgage</h2>
+              <p>Our mortgage specialists can help you:</p>
+              <ul>
+                <li>Find the best interest rates available</li>
+                <li>Structure your loan for optimal tax benefits</li>
+                <li>Create a repayment strategy that could save you thousands</li>
+              </ul>
+              
+              <p>Would you like to explore how to further optimize your mortgage? Our experts are ready to help.</p>
+              
+              <a href="#" class="cta">Schedule a Free Consultation</a>
+            </div>
+            <div class="footer">
+              <p>This report is based on the information you provided and current market conditions. It is meant for illustrative purposes only and does not constitute a loan offer.</p>
+              <p>© 2025 PropertyPathfinder. All rights reserved.</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    // In a real implementation, you would use an email service here
+    // For this demonstration, we'll log the email and return success
+    console.log(`Would send email to ${email} with mortgage report`);
     
-    // Format the email content
-    const formattedName = name || 'Investor'
-    const downPaymentAmount = propertyPrice * (downPayment / 100)
-    const loanAmount = propertyPrice - downPaymentAmount
-    
-    const emailSubject = `Your Mortgage Calculation Report from PropertyLens`
-    
-    const emailHtml = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2>Mortgage Calculation Report</h2>
-        <p>Hello ${formattedName},</p>
-        <p>Here's the mortgage calculation summary you requested:</p>
-        
-        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
-          <h3 style="margin-top: 0;">Property Details</h3>
-          <p><strong>Property Price:</strong> $${propertyPrice.toLocaleString()}</p>
-          <p><strong>Down Payment:</strong> $${downPaymentAmount.toLocaleString()} (${downPayment}%)</p>
-          <p><strong>Loan Amount:</strong> $${loanAmount.toLocaleString()}</p>
-          <p><strong>Interest Rate:</strong> ${interestRate}%</p>
-          <p><strong>Loan Term:</strong> ${loanTerm} years</p>
-        </div>
-        
-        <div style="background-color: #e9f7ef; padding: 15px; border-radius: 5px; margin: 20px 0;">
-          <h3 style="margin-top: 0;">Payment Summary</h3>
-          <p><strong>Monthly Payment:</strong> $${monthlyPayment.toLocaleString()}</p>
-          <p><strong>Total Interest Paid:</strong> $${totalInterest.toLocaleString()}</p>
-          <p><strong>Total Cost (Principal + Interest):</strong> $${totalCost.toLocaleString()}</p>
-        </div>
-        
-        <p>This report is based on the information you provided and is intended for educational purposes only. For professional financial advice, please consult with a qualified mortgage broker or financial advisor.</p>
-        
-        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
-          <p>Regards,<br>PropertyLens Investment Portal</p>
-        </div>
-      </div>
-    `
-    
-    // Logic to send email
-    // In a real implementation, you would integrate with an email service provider
-    // For now, we'll just log the content and simulate a successful email send
-    
-    console.log('Email Subject:', emailSubject)
-    console.log('Email would be sent to:', email)
-    
-    // In a production environment, you would send the actual email here
-    // For example, using the Supabase Edge Function with Resend, SendGrid, or another email service
-    
+    // Simulate email sending
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: `Mortgage report has been sent to ${email}` 
+        message: `Mortgage report sent to ${email}` 
       }),
       { 
-        status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        headers: { 
+          ...corsHeaders,
+          "Content-Type": "application/json" 
+        } 
       }
-    )
-    
+    );
   } catch (error) {
-    console.error('Error sending mortgage report:', error)
+    console.error("Error in send-mortgage-report function:", error);
     
     return new Response(
-      JSON.stringify({ error: 'Failed to send mortgage report', details: error.message }),
+      JSON.stringify({ 
+        success: false, 
+        error: error.message 
+      }),
       { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        headers: { 
+          ...corsHeaders,
+          "Content-Type": "application/json" 
+        },
+        status: 400
       }
-    )
+    );
   }
-})
+});

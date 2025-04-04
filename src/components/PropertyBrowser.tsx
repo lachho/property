@@ -43,8 +43,8 @@ const PropertyBrowser = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 2000000]);
-  const [bedrooms, setBedrooms] = useState<string>('any');
-  const [propertyType, setPropertyType] = useState<string>('any');
+  const [bedrooms, setBedrooms] = useState<string>('');
+  const [propertyType, setPropertyType] = useState<string>('');
   const [sortBy, setSortBy] = useState<string>('price_asc');
 
   // Fetch properties from Supabase
@@ -63,7 +63,7 @@ const PropertyBrowser = () => {
           query = query.gte('price', priceRange[0]).lte('price', priceRange[1]);
         }
         
-        if (bedrooms && bedrooms !== 'any') {
+        if (bedrooms) {
           query = query.eq('beds', parseInt(bedrooms));
         }
         
@@ -182,7 +182,7 @@ const PropertyBrowser = () => {
               <SelectValue placeholder="Bedrooms" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="any">Any</SelectItem>
+              <SelectItem value="">Any</SelectItem>
               <SelectItem value="1">1+ Bedrooms</SelectItem>
               <SelectItem value="2">2+ Bedrooms</SelectItem>
               <SelectItem value="3">3+ Bedrooms</SelectItem>
@@ -281,8 +281,8 @@ const PropertyBrowser = () => {
           <Button onClick={() => {
             setSearchQuery('');
             setPriceRange([0, 2000000]);
-            setBedrooms('any');
-            setPropertyType('any');
+            setBedrooms('');
+            setPropertyType('');
           }}>
             Clear All Filters
           </Button>
