@@ -5,13 +5,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import { Loader2 } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
+import PortfolioSummary from '@/components/PortfolioSummary';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import PortfolioSummarySection from '@/components/dashboard/PortfolioSummarySection';
-import PortfolioOverviewTab from '@/components/dashboard/PortfolioOverviewTab';
-import PropertiesTab from '@/components/dashboard/PropertiesTab';
-import SavedPropertiesTab from '@/components/dashboard/SavedPropertiesTab';
+import { Loader2, Plus, FileCog, FileEdit } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
+import PortfolioValueChart from '@/components/charts/PortfolioValueChart';
+import PropertyAllocationChart from '@/components/charts/PropertyAllocationChart';
+import CashFlowChart from '@/components/charts/CashFlowChart';
 
 type Property = {
   id: string;
@@ -128,20 +130,15 @@ const ClientDashboard = () => {
       if (!user) return;
       
       try {
-        console.log('Fetching properties for user:', user.id);
-        
         // Fetch all properties assigned to the user through saved_properties
         const { data: savedPropertiesData, error: savedPropertiesError } = await supabase
           .from('saved_properties')
           .select('property_id')
-          .eq('user_id', user.id)
-          .eq('purchased', true);
+          .eq('user_id', user.id);
         
         if (savedPropertiesError) {
           throw savedPropertiesError;
         }
-        
-        console.log('Saved properties data:', savedPropertiesData);
         
         if (savedPropertiesData && savedPropertiesData.length > 0) {
           const propertyIds = savedPropertiesData.map(item => item.property_id);
@@ -155,7 +152,6 @@ const ClientDashboard = () => {
             throw propertiesError;
           }
           
-          console.log('Properties data:', propertiesData);
           setProperties(propertiesData || []);
         } else {
           setProperties([]);
@@ -172,8 +168,6 @@ const ClientDashboard = () => {
           throw savedError;
         }
         
-        console.log('Saved properties (not purchased):', savedData);
-        
         if (savedData && savedData.length > 0) {
           const savedIds = savedData.map(item => item.property_id);
           
@@ -186,7 +180,6 @@ const ClientDashboard = () => {
             throw savedPropsError;
           }
           
-          console.log('Saved properties data:', savedPropsData);
           setSavedProperties(savedPropsData || []);
         } else {
           setSavedProperties([]);
@@ -205,8 +198,6 @@ const ClientDashboard = () => {
 
     if (user) {
       fetchProperties();
-    } else {
-      setIsFetchingProperties(false);
     }
   }, [user]);
 
@@ -242,14 +233,14 @@ const ClientDashboard = () => {
           </div>
           
           {/* Portfolio Summary Cards */}
-          <PortfolioSummarySection 
-            totalPortfolioValue={totalPortfolioValue || 0}
-            portfolioGrowthPercentage={portfolioGrowthPercentage}
-            monthlyCashflow={monthlyCashflow}
+          <PortfolioSummary 
+            totalValue={totalPortfolioValue || 0}
+            growthPercentage={portfolioGrowthPercentage}
+            cashflow={monthlyCashflow}
             cashflowPercentage={cashflowPercentage}
-            totalEquity={totalEquity}
+            equity={totalEquity}
             equityPercentage={equityPercentage}
-            propertiesCount={properties.length}
+            propertyCount={properties.length}
           />
           
           {/* Portfolio Charts and Property Management */}
@@ -263,20 +254,172 @@ const ClientDashboard = () => {
                 </TabsList>
               </div>
               
-              <TabsContent value="overview">
-                <PortfolioOverviewTab 
-                  portfolioValueData={portfolioValueData}
-                  propertyAllocationData={propertyAllocationData}
-                  cashFlowData={cashFlowData}
-                />
+              <TabsContent value="overview" className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <PortfolioValueChart data={portfolioValueData} />
+                  <PropertyAllocationChart data={propertyAllocationData} />
+                </div>
+                
+                <CashFlowChart data={cashFlowData} />
+                
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Financial Management</CardTitle>
+                    <CardDescription>
+                      Update your financial information to get more accurate portfolio projections
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap gap-4">
+                      <Button variant="outline" className="flex items-center gap-2">
+                        <FileEdit className="h-4 w-4" />
+                        Update Income Details
+                      </Button>
+                      <Button variant="outline" className="flex items-center gap-2">
+                        <FileCog className="h-4 w-4" />
+                        Manage Loan Information
+                      </Button>
+                      <Button variant="outline" className="flex items-center gap-2">
+                        <Plus className="h-4 w-4" />
+                        Add External Asset
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               </TabsContent>
               
               <TabsContent value="properties">
-                <PropertiesTab properties={properties} />
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Your Property Portfolio</CardTitle>
+                    <CardDescription>
+                      Properties you currently own or have invested in
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {properties.length === 0 ? (
+                      <div className="text-center py-8">
+                        <p className="text-gray-500 mb-4">You haven't added any properties to your portfolio yet.</p>
+                        <Button onClick={() => navigate('/portfolio-manager')}>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Find Properties
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {properties.map(property => (
+                          <Card key={property.id} className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                            onClick={() => navigate(`/property/${property.id}`)}>
+                            <div className="aspect-video bg-gray-100 relative">
+                              {property.image_url ? (
+                                <img 
+                                  src={property.image_url} 
+                                  alt={property.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                                  <span className="text-gray-400">No image</span>
+                                </div>
+                              )}
+                            </div>
+                            <CardContent className="pt-4">
+                              <h3 className="font-semibold text-lg mb-1">{property.name}</h3>
+                              <p className="text-gray-500 text-sm mb-2">{property.address}</p>
+                              <p className="font-bold text-lg">${property.price.toLocaleString()}</p>
+                              <div className="flex justify-between mt-2 text-sm text-gray-600">
+                                <span>{property.beds} beds</span>
+                                <span>{property.baths} baths</span>
+                                <span>{property.area} m²</span>
+                              </div>
+                              {(property.rental_yield || property.growth_rate) && (
+                                <div className="flex justify-between mt-3 text-sm">
+                                  {property.rental_yield && (
+                                    <span className="text-blue-600">
+                                      {property.rental_yield}% yield
+                                    </span>
+                                  )}
+                                  {property.growth_rate && (
+                                    <span className="text-green-600">
+                                      {property.growth_rate}% growth p.a.
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               </TabsContent>
               
               <TabsContent value="watchlist">
-                <SavedPropertiesTab savedProperties={savedProperties} />
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Saved Properties</CardTitle>
+                    <CardDescription>
+                      Properties you're interested in but haven't added to your portfolio
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {savedProperties.length === 0 ? (
+                      <div className="text-center py-8">
+                        <p className="text-gray-500 mb-4">You haven't saved any properties yet.</p>
+                        <Button onClick={() => navigate('/portfolio-manager')}>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Browse Properties
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {savedProperties.map(property => (
+                          <Card key={property.id} className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                            onClick={() => navigate(`/property/${property.id}`)}>
+                            <div className="aspect-video bg-gray-100 relative">
+                              {property.image_url ? (
+                                <img 
+                                  src={property.image_url} 
+                                  alt={property.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                                  <span className="text-gray-400">No image</span>
+                                </div>
+                              )}
+                            </div>
+                            <CardContent className="pt-4">
+                              <h3 className="font-semibold text-lg mb-1">{property.name}</h3>
+                              <p className="text-gray-500 text-sm mb-2">{property.address}</p>
+                              <p className="font-bold text-lg">${property.price.toLocaleString()}</p>
+                              <div className="flex justify-between mt-2 text-sm text-gray-600">
+                                <span>{property.beds} beds</span>
+                                <span>{property.baths} baths</span>
+                                <span>{property.area} m²</span>
+                              </div>
+                              {(property.rental_yield || property.growth_rate) && (
+                                <div className="flex justify-between mt-3 text-sm">
+                                  {property.rental_yield && (
+                                    <span className="text-blue-600">
+                                      {property.rental_yield}% yield
+                                    </span>
+                                  )}
+                                  {property.growth_rate && (
+                                    <span className="text-green-600">
+                                      {property.growth_rate}% growth p.a.
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               </TabsContent>
             </Tabs>
           </div>
