@@ -319,7 +319,7 @@ export const MortgageResultsDialog: React.FC<MortgageResultsDialogProps> = ({
                   
                   <Button 
                     type="submit" 
-                    className="bg-theme-blue hover:bg-theme-blue/90"
+                    className="hover:bg-theme-blue/90"
                     disabled={isSubmitting}
                   >
                     {isSubmitting ? (
