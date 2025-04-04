@@ -14,6 +14,7 @@ import MortgageResultsDialog from '@/components/MortgageResultsDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { MortgageResultsDialog } from "/dev-server/src/components/MortgageResultsDialog"
 
 const FinanceCalculator = () => {
   const { user } = useAuth();
