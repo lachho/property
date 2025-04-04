@@ -10,11 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useMortgageCalculator } from '@/hooks/useMortgageCalculator';
 import { Loader2, Calculator, ArrowRight } from 'lucide-react';
-import MortgageResultsDialog from '@/components/MortgageResultsDialog';
+import { MortgageResultsDialog } from '@/components/MortgageResultsDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
-import { MortgageResultsDialog } from "/dev-server/src/components/MortgageResultsDialog"
 
 const FinanceCalculator = () => {
   const { user } = useAuth();
