@@ -242,11 +242,15 @@ const AssignProperty = () => {
                       <SelectValue placeholder="Select a client" />
                     </SelectTrigger>
                     <SelectContent>
-                      {clients.map(client => (
-                        <SelectItem key={client.id} value={client.id}>
-                          {client.first_name} {client.last_name} ({client.email})
-                        </SelectItem>
-                      ))}
+                      {clients.length > 0 ? (
+                        clients.map(client => (
+                          <SelectItem key={client.id} value={client.id}>
+                            {client.first_name} {client.last_name} ({client.email})
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="no-clients">No clients available</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -258,11 +262,15 @@ const AssignProperty = () => {
                       <SelectValue placeholder="Select a property" />
                     </SelectTrigger>
                     <SelectContent>
-                      {properties.map(property => (
-                        <SelectItem key={property.id} value={property.id}>
-                          {property.name} - ${property.price.toLocaleString()}
-                        </SelectItem>
-                      ))}
+                      {properties.length > 0 ? (
+                        properties.map(property => (
+                          <SelectItem key={property.id} value={property.id}>
+                            {property.name} - ${property.price.toLocaleString()}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="no-properties">No properties available</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
