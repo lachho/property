@@ -178,7 +178,7 @@ export const MortgageResultsDialog: React.FC<MortgageResultsDialogProps> = ({
                 Close
               </Button>
               <Button 
-                className="flex-1 py-6 bg-theme-blue hover:bg-theme-blue/90"
+                className="flex-1 hover:bg-theme-blue/90"
                 onClick={onGetReportClick}
               >
                 <div className="flex items-center justify-center">
