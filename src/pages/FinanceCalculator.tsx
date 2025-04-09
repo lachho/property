@@ -134,8 +134,15 @@ const FinanceCalculator = () => {
     if (!calculationResults) return;
     
     try {
+      const mortgageFormValues = mortgageForm.getValues();
+      
       const mortgageDetails = {
-        ...mortgageForm.getValues(),
+        loanAmount: mortgageFormValues.loanAmount,
+        interestRate: mortgageFormValues.interestRate,
+        loanTerm: mortgageFormValues.loanTerm,
+        repaymentFrequency: mortgageFormValues.repaymentFrequency,
+        loanType: mortgageFormValues.loanType,
+        additionalRepayments: mortgageFormValues.additionalRepayments,
         results: calculationResults
       };
       

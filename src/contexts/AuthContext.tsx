@@ -1,6 +1,8 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { User, Session } from '@supabase/supabase-js';
+import { toast } from '@/hooks/use-toast';
 
 // Define a proper Profile interface with all needed properties
 interface Profile {
@@ -19,7 +21,8 @@ interface Profile {
 }
 
 interface AuthContextType {
-  user: any;
+  user: User | null;
+  session: Session | null;
   profile: Profile | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
@@ -32,7 +35,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -41,6 +45,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Set up auth state listener FIRST to catch all auth events
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       console.log("Auth state changed:", _event, session?.user?.id);
+      setSession(session);
       setUser(session?.user ?? null);
     });
 
@@ -49,6 +54,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         console.log("Initial session check:", session?.user?.id);
+        setSession(session);
         setUser(session?.user ?? null);
       } catch (error) {
         console.error("Error getting session:", error);
@@ -108,7 +114,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     getProfile();
   }, [user]);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string): Promise<void> => {
     setIsLoading(true);
     try {
       console.log("Signing in:", email);
@@ -123,7 +129,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       
       console.log("Sign in successful:", data?.user?.id);
-      return data;
     } catch (error: any) {
       console.error("Error signing in:", error.message);
       throw error;
@@ -132,7 +137,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const signUp = async (email: string, password: string, userData?: any) => {
+  const signUp = async (email: string, password: string, userData?: any): Promise<void> => {
     setIsLoading(true);
     try {
       console.log("Signing up:", email);
@@ -149,7 +154,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.log("Sign up successful, user created:", data?.user?.id);
       
       // Profile is created via database trigger
-      return data;
     } catch (error: any) {
       console.error("Error signing up:", error.message);
       throw error;
@@ -158,7 +162,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const signOut = async () => {
+  const signOut = async (): Promise<void> => {
     setIsLoading(true);
     try {
       console.log("Signing out");
@@ -172,7 +176,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const updateProfile = async (data: Partial<Profile>) => {
+  const updateProfile = async (data: Partial<Profile>): Promise<void> => {
     if (!user) {
       console.error("Cannot update profile: No user logged in");
       return;
@@ -193,14 +197,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         ...oldProfile,
         ...data,
       } as Profile));
+      
+      toast({
+        title: "Profile Updated",
+        description: "Your profile has been updated successfully"
+      });
     } catch (error: any) {
       console.error("Error updating profile:", error.message);
+      toast({
+        title: "Update Failed",
+        description: error.message,
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const autoLoginAsAdmin = async () => {
+  const autoLoginAsAdmin = async (): Promise<void> => {
     setIsLoading(true);
     try {
       console.log("Auto login as admin");
@@ -211,8 +225,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (error) throw error;
       console.log("Admin auto login successful:", data?.user?.id);
-      
-      return data;
     } catch (error: any) {
       console.error("Error in auto login:", error.message);
       throw error;
@@ -223,6 +235,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const value = { 
     user, 
+    session,
     profile, 
     isLoading, 
     signIn, 

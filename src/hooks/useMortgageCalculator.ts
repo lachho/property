@@ -1,6 +1,7 @@
 
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 export interface MortgageFormData {
   loanAmount: number;
@@ -116,28 +117,19 @@ export const useMortgageCalculator = () => {
     try {
       setIsSubmitting(true);
       
-      // First, call the edge function to send the email
-      const { error: emailError } = await supabase.functions.invoke("send-mortgage-report", {
-        body: {
-          firstName: data.firstName,
-          email: data.email,
-          mortgageDetails: data.mortgageDetails
-        }
-      });
+      console.log("Submitting lead data:", data);
       
-      if (emailError) throw emailError;
-      
-      // Then, if the user doesn't already exist, create a new user account
+      // First, check if the user already exists
       const { data: existingUser } = await supabase
         .from('profiles')
         .select('id')
         .eq('email', data.email)
         .maybeSingle();
-        
+      
       if (!existingUser) {
+        console.log("Creating new user account");
+        
         // Create a new user with Supabase Auth
-        // Note: This normally would generate a confirmation email
-        // For development, disable email confirmation in Supabase dashboard
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: data.email,
           password: generateRandomPassword(), // This would be replaced with a proper password flow
@@ -150,12 +142,66 @@ export const useMortgageCalculator = () => {
           }
         });
         
-        if (authError) throw authError;
+        if (authError) {
+          console.error("Auth error:", authError);
+          throw authError;
+        }
+        
+        console.log("User created:", authData?.user?.id);
+        
+        // The profile will be created via the database trigger
+        // Add financial data from mortgage calculator
+        if (authData?.user?.id) {
+          const { error: profileUpdateError } = await supabase
+            .from('profiles')
+            .update({
+              gross_income: data.mortgageDetails.loanAmount * 0.2, // Estimate based on loan amount
+            })
+            .eq('id', authData.user.id);
+            
+          if (profileUpdateError) {
+            console.error("Error updating profile with financial data:", profileUpdateError);
+          }
+        }
+      } else {
+        console.log("User already exists:", existingUser.id);
       }
+      
+      // Then, call the edge function to send the email (if enabled)
+      try {
+        console.log("Calling edge function to send email");
+        const { error: emailError } = await supabase.functions.invoke("send-mortgage-report", {
+          body: {
+            firstName: data.firstName,
+            email: data.email,
+            mortgageDetails: data.mortgageDetails
+          }
+        });
+        
+        if (emailError) {
+          console.error("Email function error:", emailError);
+          // Don't throw here - just log the error and continue
+        }
+      } catch (emailErr) {
+        console.error("Failed to call edge function:", emailErr);
+        // This is a non-critical error, we can continue
+      }
+      
+      toast({
+        title: "Lead Submitted",
+        description: "Thank you for your submission. We'll be in touch soon."
+      });
       
       return { success: true };
     } catch (error) {
       console.error("Error submitting lead:", error);
+      
+      toast({
+        title: "Submission Failed",
+        description: "There was an error submitting your information. Please try again.",
+        variant: "destructive"
+      });
+      
       return { success: false, error };
     } finally {
       setIsSubmitting(false);

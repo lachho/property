@@ -12,8 +12,62 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
+    detectSessionInUrl: true, // Detect session from URL hash
+    flowType: 'pkce' // Use PKCE flow for secure auth
   }
 });
+
+// Create an admin user if needed
+(async function initializeDatabase() {
+  try {
+    // Check if admin exists
+    const { data: adminExists } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('role', 'admin')
+      .maybeSingle();
+
+    if (!adminExists) {
+      console.log("No admin found, attempting to create admin user");
+      
+      // Create admin user
+      const { data: userData, error: signupError } = await supabase.auth.signUp({
+        email: 'admin@example.com',
+        password: 'password123',
+        options: {
+          data: {
+            first_name: 'Admin',
+            last_name: 'User',
+          }
+        }
+      });
+
+      if (signupError) {
+        console.error("Failed to create admin user:", signupError);
+      } else {
+        console.log("Admin user created successfully");
+        
+        if (userData?.user?.id) {
+          // Update profile role to admin
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({ role: 'admin' })
+            .eq('id', userData.user.id);
+            
+          if (updateError) {
+            console.error("Failed to update admin role:", updateError);
+          } else {
+            console.log("Admin role assigned successfully");
+          }
+        }
+      }
+    } else {
+      console.log("Admin user already exists");
+    }
+  } catch (error) {
+    console.error("Error during database initialization:", error);
+  }
+})();
 
 // For debugging purposes
 console.log("Supabase client initialized with URL:", SUPABASE_URL);

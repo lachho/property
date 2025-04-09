@@ -41,7 +41,7 @@ const PortfolioManager = () => {
         }
       }
       
-      // If we have both user and profile, or we've already attempted routing
+      // If we have both user and profile
       if (profile) {
         console.log(`PortfolioManager: Routing user with role ${profile.role} to appropriate dashboard`);
         if (profile.role === 'admin') {
@@ -51,9 +51,53 @@ const PortfolioManager = () => {
         }
       } else if (routingAttempted) {
         // If we've tried to get the profile but still don't have it, 
-        // assume client role as default and redirect
-        console.log("PortfolioManager: Profile not available after retry, defaulting to client dashboard");
-        navigate('/client-dashboard');
+        // something might be wrong - let's create a profile if needed
+        console.log("PortfolioManager: Profile not available after retry, checking if profile exists");
+        
+        // Double-check if profile exists in the database
+        const checkAndCreateProfile = async () => {
+          try {
+            const { supabase } = await import('@/integrations/supabase/client');
+            
+            // Check if profile exists
+            const { data: existingProfile } = await supabase
+              .from('profiles')
+              .select('id')
+              .eq('id', user.id)
+              .maybeSingle();
+            
+            if (!existingProfile) {
+              console.log("PortfolioManager: Profile doesn't exist, creating one");
+              
+              // Create profile if it doesn't exist
+              const { error } = await supabase
+                .from('profiles')
+                .insert({
+                  id: user.id,
+                  email: user.email,
+                  role: 'client' // Default role
+                });
+              
+              if (error) {
+                console.error("Failed to create profile:", error);
+                // Default to client dashboard if we can't create a profile
+                navigate('/client-dashboard');
+              } else {
+                // Redirect to client dashboard after creating profile
+                navigate('/client-dashboard');
+              }
+            } else {
+              // Profile exists but wasn't loaded for some reason
+              console.log("PortfolioManager: Profile exists but wasn't loaded, defaulting to client dashboard");
+              navigate('/client-dashboard');
+            }
+          } catch (error) {
+            console.error("Error checking/creating profile:", error);
+            navigate('/client-dashboard'); // Default fallback
+          }
+        };
+        
+        checkAndCreateProfile();
       }
     }
   }, [isLoading, user, profile, navigate, routingAttempted]);
