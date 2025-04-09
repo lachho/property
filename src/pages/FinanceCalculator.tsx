@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -47,7 +46,6 @@ import { Progress } from "@/components/ui/progress";
 import { useMortgageCalculator, MortgageFormData, LeadData } from '@/hooks/useMortgageCalculator';
 import { MortgageResultsDialog } from '@/components/MortgageResultsDialog';
 
-// Validations for the forms
 const mortgageFormSchema = z.object({
   loanAmount: z.coerce.number().min(10000, "Minimum loan amount is $10,000").max(10000000, "Maximum loan amount is $10,000,000"),
   interestRate: z.coerce.number().min(0.1, "Minimum interest rate is 0.1%").max(15, "Maximum interest rate is 15%"),
@@ -68,7 +66,6 @@ const leadFormSchema = z.object({
   }),
 });
 
-// Helper function to format currency with spaces between thousands
 const formatCurrency = (amount: number): string => {
   return new Intl.NumberFormat('en-AU', {
     style: 'currency',
@@ -77,7 +74,6 @@ const formatCurrency = (amount: number): string => {
   }).format(amount);
 };
 
-// Helper function to format large numbers with spaces
 const formatNumber = (number: number): string => {
   return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 };
@@ -115,19 +111,17 @@ const FinanceCalculator = () => {
       lastName: "",
       email: "",
       phone: "",
-      purchaseTimeframe: "6-12 months", // Set a default value for the select
+      purchaseTimeframe: "6-12 months",
       privacyPolicy: false,
     },
   });
 
-  // Update the progress bar as the user fills out the form
   useEffect(() => {
     if (formStep === 1) setFormProgress(33);
     else if (formStep === 2) setFormProgress(66);
     else if (formStep === 3) setFormProgress(100);
   }, [formStep]);
 
-  // Watch form values for loan amount to update the slider
   const watchedLoanAmount = mortgageForm.watch("loanAmount");
 
   const handleMortgageSubmit = (data: MortgageFormData) => {
@@ -157,10 +151,9 @@ const FinanceCalculator = () => {
       
       await submitLead(leadData);
       
-      // Show thank you message or redirect
       setShowLeadForm(false);
       setShowResults(false);
-      setFormStep(3); // Move to thank you step
+      setFormStep(3);
     } catch (error) {
       console.error("Error submitting lead:", error);
     }
@@ -435,7 +428,6 @@ const FinanceCalculator = () => {
         </div>
       </main>
 
-      {/* Mortgage Results Dialog */}
       {calculationResults && (
         <MortgageResultsDialog
           open={showResults}
