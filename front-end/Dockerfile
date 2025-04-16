@@ -1,12 +1,13 @@
-FROM node:18-alpine AS build
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-RUN npm run build
+FROM node:18-alpine
 
-FROM nginx:alpine
-COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+WORKDIR /app
+
+# Copy package.json and install dependencies
+COPY package.json package-lock.json* ./
+RUN npm install
+
+# Expose port for Vite dev server
 EXPOSE 3000
-CMD ["nginx", "-g", "daemon off;"] 
+
+# Start development server with host set to 0.0.0.0 to allow external access
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"] 

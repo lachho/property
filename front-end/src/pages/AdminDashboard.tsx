@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -6,7 +5,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, UserCog, Home, Plus, Link as LinkIcon } from 'lucide-react';
+import { Loader2, UserCog, Home, Plus, Link as LinkIcon, FileQuestion, UserRound, DollarSign, Package } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
@@ -38,6 +37,7 @@ const AdminDashboard = () => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [isFetchingClients, setIsFetchingClients] = useState(true);
   const [isFetchingProperties, setIsFetchingProperties] = useState(true);
+
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -217,6 +217,12 @@ const AdminDashboard = () => {
                       Assign Property
                     </Link>
                   </Button>
+                  <Button size="sm" variant="outline" asChild className="bg-theme-warm/5 border-theme-warm text-theme-warm hover:bg-theme-warm/10 hover:text-theme-warm">
+                    <Link to="/admin-client-form">
+                      <UserCog className="mr-1 h-4 w-4" />
+                      New Client Details
+                    </Link>
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -282,7 +288,16 @@ const AdminDashboard = () => {
                               className="bg-theme-warm hover:bg-theme-warm/90"
                               onClick={() => navigate(`/admin/client/${client.id}`)}
                             >
-                              View
+                              View Client
+                            </Button>
+                            <Button 
+                              size="sm"
+                              variant="outline"
+                              className="bg-theme-blue/5 border-theme-blue text-theme-blue hover:bg-theme-blue/10 hover:text-theme-blue"
+                              onClick={() => navigate(`/admin-client-form/${client.id}`)}
+                            >
+                              <UserCog className="mr-1 h-4 w-4" />
+                              Details
                             </Button>
                           </TableCell>
                         </TableRow>

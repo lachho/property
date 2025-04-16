@@ -1,11 +1,22 @@
-FROM maven:3.8.7-eclipse-temurin-17 AS build
-WORKDIR /app
-COPY pom.xml .
-COPY src ./src
-RUN mvn clean package -DskipTests
+FROM maven:3.8.7-eclipse-temurin-17
 
-FROM eclipse-temurin:17
 WORKDIR /app
-COPY --from=build /app/target/*.jar app.jar
+
+# Only copy POM file to cache dependencies
+COPY pom.xml .
+
+# Install Maven dependencies (this layer is cached if pom.xml doesn't change)
+RUN mvn dependency:go-offline
+
+# Set Spring profiles
+ENV SPRING_PROFILES_ACTIVE=dev
+
+# Add Spring Boot DevTools support
+ENV SPRING_DEVTOOLS_RESTART_ENABLED=true
+ENV SPRING_DEVTOOLS_ADD_PROPERTIES=true
+
+# Expose port
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"] 
+
+# Run the application with Spring Boot DevTools enabled for hot reloading
+CMD ["mvn", "spring-boot:run", "-Dspring-boot.run.jvmArguments='-XX:TieredStopAtLevel=1'"] 

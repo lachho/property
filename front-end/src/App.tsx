@@ -17,6 +17,7 @@ import AdminPropertyEdit from "./pages/AdminPropertyEdit";
 import AddProperty from "./pages/AddProperty";
 import AssignProperty from "./pages/AssignProperty";
 import NotFound from "./pages/NotFound";
+import AdminClientForm from "./pages/AdminClientForm";
 
 const queryClient = new QueryClient();
 
@@ -42,6 +43,8 @@ const App = () => (
             <Route path="/admin/property/:propertyId" element={<AdminPropertyEdit />} />
             <Route path="/add-property" element={<AddProperty />} />
             <Route path="/assign-property" element={<AssignProperty />} />
+            <Route path="/admin-client-form" element={<AdminClientForm />} />
+            <Route path="/admin-client-form/:clientId" element={<AdminClientForm />} />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

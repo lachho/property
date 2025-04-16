@@ -27,7 +27,7 @@ const HeroSection = () => {
       <div className="container-custom relative z-20 text-center md:text-left">
         <div className="max-w-3xl">
           <h1 className="heading-xl text-white mb-4">
-            Smart Property Investment Solutions
+            Smart Property Investment Solutions for Australians
           </h1>
           <p className="text-xl text-white/90 mb-8">
             Powerful tools to help you make informed decisions, maximize returns, and grow your property portfolio.

@@ -1,4 +1,4 @@
--- Create portfolios table
+-- This is now V4 (renamed from V2 to avoid version conflict)
 CREATE TABLE portfolios (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     profile_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,

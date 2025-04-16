@@ -1,5 +1,6 @@
 package com.property.controller;
 
+import com.property.dto.ProfileDetailsDto;
 import com.property.entity.Profile;
 import com.property.service.ProfileService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +34,18 @@ public class ProfileController {
     @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.id")
     public ResponseEntity<Profile> updateProfile(@PathVariable UUID id, @RequestBody Profile profile) {
         return ResponseEntity.ok(profileService.updateProfile(id, profile));
+    }
+
+    @PutMapping("/{id}/details")
+    @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.id")
+    public ResponseEntity<ProfileDetailsDto> updateProfileDetails(@PathVariable UUID id, @RequestBody ProfileDetailsDto profileDetails) {
+        return ResponseEntity.ok(profileService.updateProfileDetails(id, profileDetails));
+    }
+
+    @GetMapping("/{id}/details")
+    @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.id")
+    public ResponseEntity<ProfileDetailsDto> getProfileDetails(@PathVariable UUID id) {
+        return ResponseEntity.ok(profileService.getProfileDetails(id));
     }
 
     @DeleteMapping("/{id}")

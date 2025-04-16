@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -6,7 +5,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, ArrowLeft, Edit, Save } from 'lucide-react';
+import { Loader2, ArrowLeft, Edit, Save, UserCog } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Form, FormField, FormItem, FormLabel, FormControl } from '@/components/ui/form';
@@ -190,32 +189,42 @@ const AdminClientView = () => {
               <h1 className="heading-lg">Client Profile</h1>
             </div>
             
-            {isEditing ? (
+            <div className="flex gap-2">
               <Button 
-                onClick={form.handleSubmit(handleSave)}
-                disabled={isSaving}
-              >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving
-                  </>
-                ) : (
-                  <>
-                    <Save className="mr-2 h-4 w-4" />
-                    Save Changes
-                  </>
-                )}
-              </Button>
-            ) : (
-              <Button 
-                onClick={() => setIsEditing(true)}
                 variant="outline"
+                onClick={() => navigate(`/admin-client-form/${clientId}`)}
               >
-                <Edit className="mr-2 h-4 w-4" />
-                Edit Profile
+                <UserCog className="mr-2 h-4 w-4" />
+                Detailed Client Form
               </Button>
-            )}
+              
+              {isEditing ? (
+                <Button 
+                  onClick={form.handleSubmit(handleSave)}
+                  disabled={isSaving}
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving
+                    </>
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4" />
+                      Save Changes
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <Button 
+                  onClick={() => setIsEditing(true)}
+                  variant="outline"
+                >
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit Profile
+                </Button>
+              )}
+            </div>
           </div>
           
           <Card className="mb-8">
@@ -418,7 +427,6 @@ const AdminClientView = () => {
             </CardContent>
           </Card>
           
-          {/* Client Properties Section - Can be implemented later */}
           <Card>
             <CardHeader>
               <CardTitle>Client Properties</CardTitle>

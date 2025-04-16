@@ -9,7 +9,7 @@ CREATE TABLE profiles (
     email TEXT NOT NULL UNIQUE,
     password TEXT NOT NULL,
     phone TEXT,
-    date_of_birth TIMESTAMP WITH TIME ZONE,
+    date_of_birth DATE,
     role user_role NOT NULL DEFAULT 'CLIENT',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
     gross_income NUMERIC(19,2),
