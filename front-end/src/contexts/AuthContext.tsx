@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
@@ -18,6 +17,16 @@ interface Profile {
   dependants?: number | null;
   marital_status?: string;
   date_of_birth?: string | null;
+  // Calculator fields
+  borrowing_capacity?: number | null;
+  purchase_timeframe?: string | null;
+  loan_amount?: number | null;
+  interest_rate?: number | null;
+  loan_term?: string | null;
+  repayment_frequency?: string | null;
+  loan_type?: string | null;
+  additional_repayments?: number | null;
+  monthly_repayment?: number | null;
 }
 
 interface AuthContextType {
@@ -86,7 +95,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Query the profiles table for the current user
         let { data, error, status } = await supabase
           .from('profiles')
-          .select(`id, first_name, last_name, email, role, phone, gross_income, partner_income, existing_loans, dependants, marital_status, date_of_birth`)
+          .select(`
+            id, first_name, last_name, email, role, phone, 
+            gross_income, partner_income, existing_loans, dependants, 
+            marital_status, date_of_birth, borrowing_capacity, 
+            purchase_timeframe, loan_amount, interest_rate, loan_term, 
+            repayment_frequency, loan_type, additional_repayments, 
+            monthly_repayment
+          `)
           .eq('id', user.id)
           .single();
 

@@ -48,6 +48,15 @@ export type Database = {
           partner_income: number | null
           phone: string | null
           role: Database["public"]["Enums"]["user_role"]
+          borrowing_capacity: number | null
+          purchase_timeframe: string | null
+          loan_amount: number | null
+          interest_rate: number | null
+          loan_term: string | null
+          repayment_frequency: string | null
+          loan_type: string | null
+          additional_repayments: number | null
+          monthly_repayment: number | null
         }
         Insert: {
           created_at?: string
@@ -63,6 +72,15 @@ export type Database = {
           partner_income?: number | null
           phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          borrowing_capacity?: number | null
+          purchase_timeframe?: string | null
+          loan_amount?: number | null
+          interest_rate?: number | null
+          loan_term?: string | null
+          repayment_frequency?: string | null
+          loan_type?: string | null
+          additional_repayments?: number | null
+          monthly_repayment?: number | null
         }
         Update: {
           created_at?: string
@@ -78,6 +96,15 @@ export type Database = {
           partner_income?: number | null
           phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          borrowing_capacity?: number | null
+          purchase_timeframe?: string | null
+          loan_amount?: number | null
+          interest_rate?: number | null
+          loan_term?: string | null
+          repayment_frequency?: string | null
+          loan_type?: string | null
+          additional_repayments?: number | null
+          monthly_repayment?: number | null
         }
         Relationships: []
       }

@@ -15,7 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.stream.Collectors;
-
+import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class PortfolioServiceImpl implements PortfolioService {
@@ -23,8 +23,45 @@ public class PortfolioServiceImpl implements PortfolioService {
     private final PortfolioRepository portfolioRepository;
 
     @Override
+    public Portfolio createPortfolio(UUID userId) {
+        Portfolio portfolio = new Portfolio();
+        portfolio.setId(userId);
+        return portfolioRepository.save(portfolio);
+    }
+
+    @Override
+    public PortfolioDTO updatePortfolio(UUID portfolioId, PortfolioDTO portfolioDTO) {
+        Portfolio portfolio = portfolioRepository.findById(portfolioId)
+            .orElseThrow(() -> new RuntimeException("Portfolio not found"));
+        // Update portfolio fields
+        return convertToDTO(portfolioRepository.save(portfolio));
+    }
+
+    @Override
+    public void deletePortfolio(UUID portfolioId) {
+        portfolioRepository.deleteById(portfolioId);
+    }
+
+    @Override
+    public Portfolio addPropertyToPortfolio(UUID portfolioId, PropertyDTO propertyDTO) {
+        Portfolio portfolio = portfolioRepository.findById(portfolioId)
+            .orElseThrow(() -> new RuntimeException("Portfolio not found"));
+        Property property = convertToEntity(propertyDTO);
+        portfolio.getProperties().add(property);
+        return portfolioRepository.save(portfolio);
+    }
+
+    @Override
+    public Portfolio removePropertyFromPortfolio(UUID portfolioId, UUID propertyId) {
+        Portfolio portfolio = portfolioRepository.findById(portfolioId)
+            .orElseThrow(() -> new RuntimeException("Portfolio not found"));
+        portfolio.getProperties().removeIf(p -> p.getId().equals(propertyId));
+        return portfolioRepository.save(portfolio);
+    }
+
+    @Override
     @Transactional(readOnly = true)
-    public PortfolioDTO getPortfolioByUserId(Long userId) {
+    public PortfolioDTO getPortfolioByUserId(UUID userId) {
         return portfolioRepository.findByUserIdWithProperties(userId)
                 .map(this::convertToDTO)
                 .orElseThrow(() -> new RuntimeException("Portfolio not found for user: " + userId));
@@ -142,7 +179,7 @@ public class PortfolioServiceImpl implements PortfolioService {
     private PortfolioDTO convertToDTO(Portfolio portfolio) {
         return PortfolioDTO.builder()
                 .id(portfolio.getId())
-                .userId(portfolio.getUser().getId())
+                .userId(portfolio.getProfile().getId())
                 .properties(portfolio.getProperties().stream()
                         .map(this::convertToDTO)
                         .collect(Collectors.toList()))
@@ -193,35 +230,5 @@ public class PortfolioServiceImpl implements PortfolioService {
         property.setBathrooms(dto.getBathrooms());
         property.setSquareFootage(dto.getSquareFootage());
         return property;
-    }
-
-    @Override
-    public PortfolioDTO createPortfolio(Long userId) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'createPortfolio'");
-    }
-
-    @Override
-    public PortfolioDTO updatePortfolio(Long portfolioId, PortfolioDTO portfolioDTO) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'updatePortfolio'");
-    }
-
-    @Override
-    public void deletePortfolio(Long portfolioId) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'deletePortfolio'");
-    }
-
-    @Override
-    public PortfolioDTO addPropertyToPortfolio(Long portfolioId, PropertyDTO propertyDTO) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'addPropertyToPortfolio'");
-    }
-
-    @Override
-    public PortfolioDTO removePropertyFromPortfolio(Long portfolioId, Long propertyId) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'removePropertyFromPortfolio'");
     }
 } 

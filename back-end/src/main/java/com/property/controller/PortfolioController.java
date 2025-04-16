@@ -10,6 +10,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/portfolio")
 @RequiredArgsConstructor
@@ -18,7 +20,7 @@ public class PortfolioController {
     private final PortfolioService portfolioService;
 
     @GetMapping("/{userId}")
-    public ResponseEntity<PortfolioDTO> getPortfolio(@PathVariable Long userId) {
+    public ResponseEntity<PortfolioDTO> getPortfolio(@PathVariable UUID userId) {
         return ResponseEntity.ok(portfolioService.getPortfolioByUserId(userId));
     }
 

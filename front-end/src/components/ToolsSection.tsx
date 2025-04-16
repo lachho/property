@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Calculator, LineChart, LayoutDashboard } from 'lucide-react';
@@ -15,11 +14,11 @@ const ToolsSection = () => {
       path: '/borrowing-capacity'
     },
     {
-      id: 'finance-calculator',
-      title: 'Finance Calculator',
+      id: 'mortgage-calculator',
+      title: 'Mortgage Calculator',
       description: 'Calculate mortgage payments, interest rates, loan terms, and more to plan your property financing.',
       icon: <LineChart size={48} className="text-theme-blue" />,
-      path: '/finance-calculator'
+      path: '/mortgage-calculator'
     },
     {
       id: 'portfolio-manager',

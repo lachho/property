@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, Phone, MapPin } from 'lucide-react';
@@ -38,7 +37,7 @@ const Footer = () => {
             <ul className="space-y-2">
               <li><Link to="/" className="text-gray-400 hover:text-white">Home</Link></li>
               <li><Link to="/borrowing-capacity" className="text-gray-400 hover:text-white">Borrowing Capacity</Link></li>
-              <li><Link to="/finance-calculator" className="text-gray-400 hover:text-white">Finance Calculator</Link></li>
+              <li><Link to="/mortgage-calculator" className="text-gray-400 hover:text-white">Mortgage Calculator</Link></li>
               <li><Link to="/portfolio-manager" className="text-gray-400 hover:text-white">Portfolio Manager</Link></li>
               <li><Link to="/about" className="text-gray-400 hover:text-white">About Us</Link></li>
               <li><Link to="/contact" className="text-gray-400 hover:text-white">Contact Us</Link></li>

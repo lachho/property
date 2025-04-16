@@ -6,13 +6,13 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
-
+import java.util.UUID;
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class SimulationRequest {
-    private Long portfolioId;
+    private UUID portfolioId;
     private PropertyDTO newProperty;
     private BigDecimal interestRate;
     private Integer loanTerm;

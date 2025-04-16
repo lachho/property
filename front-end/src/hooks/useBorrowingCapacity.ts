@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -39,25 +38,55 @@ export const useBorrowingCapacity = () => {
       // Generate a random password
       const randomPassword = Math.random().toString(36).slice(-10);
       
-      // Create a user account through auth to bypass RLS
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: leadData.email,
-        password: randomPassword,
-        options: {
-          data: {
-            first_name: leadData.name.split(' ')[0],
-            last_name: leadData.name.split(' ').slice(1).join(' '),
-            phone: leadData.phone,
+      // First, check if the user already exists
+      const { data: existingUser } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', leadData.email)
+        .maybeSingle();
+      
+      if (!existingUser) {
+        console.log("Creating new user account");
+        
+        // Create a new user account through auth to bypass RLS
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: leadData.email,
+          password: randomPassword,
+          options: {
+            data: {
+              first_name: leadData.name.split(' ')[0],
+              last_name: leadData.name.split(' ').slice(1).join(' '),
+              phone: leadData.phone,
+              gross_income: formData.grossIncome,
+              partner_income: formData.partnerIncome || null,
+              dependants: formData.dependants,
+              existing_loans: formData.existingLoans,
+              marital_status: formData.maritalStatus,
+              borrowing_capacity: borrowingCapacity
+            }
+          }
+        });
+
+        if (authError) throw authError;
+      } else {
+        console.log("User already exists, updating their profile with the latest information");
+        
+        // Update the existing user profile with the new information
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
             gross_income: formData.grossIncome,
             partner_income: formData.partnerIncome || null,
             dependants: formData.dependants,
             existing_loans: formData.existingLoans,
-            marital_status: formData.maritalStatus
-          }
-        }
-      });
-
-      if (authError) throw authError;
+            marital_status: formData.maritalStatus,
+            phone: leadData.phone,
+            borrowing_capacity: borrowingCapacity
+          })
+          .eq('id', existingUser.id);
+        
+        if (updateError) throw updateError;
+      }
 
       // Send email report using the edge function
       const { error: emailError } = await supabase.functions.invoke('send-borrowing-report', {
@@ -82,7 +111,8 @@ export const useBorrowingCapacity = () => {
       });
       
       // Sign out the user if they were automatically signed in
-      if (authData.user) {
+      const { data: session } = await supabase.auth.getSession();
+      if (session?.session?.user) {
         await supabase.auth.signOut();
       }
 

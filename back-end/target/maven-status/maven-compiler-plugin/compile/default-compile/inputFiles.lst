@@ -1,4 +1,5 @@
 /home/lachy/coding/property-path/back-end/src/main/java/com/property/service/impl/PortfolioServiceImpl.java
+/home/lachy/coding/property-path/back-end/src/main/java/com/property/entity/User.java
 /home/lachy/coding/property-path/back-end/src/main/java/com/property/repository/PortfolioRepository.java
 /home/lachy/coding/property-path/back-end/src/main/java/com/property/dto/RegisterRequest.java
 /home/lachy/coding/property-path/back-end/src/main/java/com/property/service/PortfolioService.java
@@ -11,6 +12,7 @@
 /home/lachy/coding/property-path/back-end/src/main/java/com/property/service/impl/ProfileServiceImpl.java
 /home/lachy/coding/property-path/back-end/src/main/java/com/property/entity/Property.java
 /home/lachy/coding/property-path/back-end/src/main/java/com/property/dto/AuthRequest.java
+/home/lachy/coding/property-path/back-end/src/main/java/com/property/exception/ResourceNotFoundException.java
 /home/lachy/coding/property-path/back-end/src/main/java/com/property/security/CustomUserDetailsService.java
 /home/lachy/coding/property-path/back-end/src/main/java/com/property/security/JwtService.java
 /home/lachy/coding/property-path/back-end/src/main/java/com/property/entity/Portfolio.java
@@ -25,3 +27,4 @@
 /home/lachy/coding/property-path/back-end/src/main/java/com/property/service/ProfileService.java
 /home/lachy/coding/property-path/back-end/src/main/java/com/property/config/SecurityConfig.java
 /home/lachy/coding/property-path/back-end/src/main/java/com/property/security/JwtAuthenticationFilter.java
+/home/lachy/coding/property-path/back-end/src/main/java/com/property/repository/UserRepository.java

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -37,8 +36,8 @@ const Navbar = () => {
           <Link to="/borrowing-capacity" className="text-gray-800 hover:text-theme-blue font-medium transition-colors">
             Borrowing Capacity
           </Link>
-          <Link to="/finance-calculator" className="text-gray-800 hover:text-theme-blue font-medium transition-colors">
-            Finance Calculator
+          <Link to="/mortgage-calculator" className="text-gray-800 hover:text-theme-blue font-medium transition-colors">
+            Mortgage Calculator
           </Link>
           <Link to="/portfolio-manager" className="text-gray-800 hover:text-theme-blue font-medium transition-colors">
             Portfolio Manager
@@ -88,11 +87,11 @@ const Navbar = () => {
               Borrowing Capacity
             </Link>
             <Link 
-              to="/finance-calculator" 
+              to="/mortgage-calculator" 
               className="text-gray-800 hover:text-theme-blue font-medium transition-colors p-2"
               onClick={() => setIsMenuOpen(false)}
             >
-              Finance Calculator
+              Mortgage Calculator
             </Link>
             <Link 
               to="/portfolio-manager" 

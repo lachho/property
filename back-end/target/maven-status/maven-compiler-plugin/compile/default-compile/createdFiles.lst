@@ -11,10 +11,11 @@ com/property/entity/Profile$ProfileBuilder.class
 com/property/dto/AuthResponse.class
 com/property/dto/AuthRequest.class
 com/property/dto/AuthResponse$AuthResponseBuilder.class
+com/property/repository/UserRepository.class
 com/property/security/JwtService.class
 com/property/config/SecurityConfig.class
 com/property/dto/SimulationResponse$SimulationResponseBuilder.class
-com/property/entity/Portfolio$PortfolioBuilder.class
+com/property/entity/User.class
 com/property/service/impl/AuthServiceImpl.class
 com/property/security/CustomUserDetailsService.class
 com/property/dto/RegisterRequest.class
@@ -23,6 +24,7 @@ com/property/repository/PortfolioRepository.class
 com/property/service/impl/ProfileServiceImpl.class
 com/property/service/ProfileService.class
 com/property/security/JwtAuthenticationFilter.class
+com/property/exception/ResourceNotFoundException.class
 com/property/service/PortfolioService.class
 com/property/dto/SimulationRequest$SimulationRequestBuilder.class
 com/property/dto/PortfolioDTO$PortfolioDTOBuilder.class
