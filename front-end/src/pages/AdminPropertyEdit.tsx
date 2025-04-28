@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,8 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Form, FormField, FormItem, FormLabel, FormControl } from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import apiService from '@/services/api';
 
 type Property = {
   id: string;
@@ -27,6 +26,11 @@ type Property = {
   features: string[] | null;
   growth_rate: number | null;
   rental_yield: number | null;
+  purchasePrice: number;
+  currentValue: number;
+  deposit: number;
+  userId: string;
+  status: string;
 };
 
 const AdminPropertyEdit = () => {
@@ -51,113 +55,102 @@ const AdminPropertyEdit = () => {
       features: [],
       growth_rate: 0,
       rental_yield: 0,
+      purchasePrice: 0,
+      currentValue: 0,
+      deposit: 0,
+      userId: '',
+      status: '',
     }
   });
 
   useEffect(() => {
     if (!isLoading && !user) {
       navigate('/auth');
-    } else if (!isLoading && user && profile && profile.role !== 'admin') {
+    } else if (!isLoading && user && profile && profile.role !== 'ADMIN') {
       navigate('/portfolio-manager');
     }
   }, [isLoading, user, profile, navigate]);
 
   useEffect(() => {
     const fetchPropertyData = async () => {
-      if (!user || !propertyId) return;
-      
+      if (!user) return;
       try {
-        const { data, error } = await supabase
-          .from('properties')
-          .select('*')
-          .eq('id', propertyId)
-          .single();
-        
-        if (error) {
-          console.error('Error fetching property:', error);
-          toast({
-            title: "Error",
-            description: "Failed to load property details",
-            variant: "destructive"
-          });
-          navigate('/admin-dashboard');
-        } else if (data) {
-          setProperty(data as Property);
-          form.reset({
-            id: data.id,
-            name: data.name,
-            address: data.address,
-            description: data.description,
-            price: data.price,
-            beds: data.beds,
-            baths: data.baths,
-            area: data.area,
-            image_url: data.image_url,
-            features: data.features,
-            growth_rate: data.growth_rate,
-            rental_yield: data.rental_yield,
-          });
-        }
+        const { data } = await apiService.getProperty(Number(propertyId));
+        setProperty({
+          id: data.id?.toString() || '',
+          name: data.name || '',
+          address: data.address || '',
+          description: data.description || '',
+          price: data.currentValue || 0,
+          beds: (data as any).beds || 0,
+          baths: (data as any).baths || 0,
+          area: (data as any).area || 0,
+          image_url: (data as any).image_url || '',
+          features: (data as any).features || [],
+          growth_rate: (data as any).growth_rate || 0,
+          rental_yield: (data as any).rental_yield || 0,
+          purchasePrice: data.purchasePrice || 0,
+          currentValue: data.currentValue || 0,
+          deposit: data.deposit || 0,
+          userId: data.userId?.toString() || '',
+          status: data.status || '',
+        });
       } catch (error) {
         console.error('Unexpected error fetching property:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load property",
+          variant: "destructive"
+        });
       } finally {
         setIsFetching(false);
       }
     };
-
-    if (user && profile?.role === 'admin') {
+    if (user && profile?.role === 'ADMIN') {
       fetchPropertyData();
     }
-  }, [user, profile, propertyId, navigate, form]);
+  }, [user, profile, propertyId]);
 
   const handleSave = async (data: Property) => {
-    if (!user || !propertyId) return;
-    
     setIsSaving(true);
     try {
-      const { error } = await supabase
-        .from('properties')
-        .update({
-          name: data.name,
-          address: data.address,
-          description: data.description,
-          price: data.price,
-          beds: data.beds,
-          baths: data.baths,
-          area: data.area,
-          image_url: data.image_url,
-          features: data.features,
-          growth_rate: data.growth_rate,
-          rental_yield: data.rental_yield,
-        })
-        .eq('id', propertyId);
-      
-      if (error) {
-        console.error('Error updating property:', error);
-        toast({
-          title: "Error",
-          description: "Failed to update property details",
-          variant: "destructive"
-        });
-      } else {
-        toast({
-          title: "Success",
-          description: "Property details updated successfully",
-        });
-        setIsEditing(false);
-        // Refresh property data
-        const { data: updatedData } = await supabase
-          .from('properties')
-          .select('*')
-          .eq('id', propertyId)
-          .single();
-        
-        if (updatedData) {
-          setProperty(updatedData as Property);
-        }
-      }
+      await apiService.updateProperty(Number(propertyId), {
+        ...data,
+        id: data.id ? Number(data.id) : 0,
+        userId: data.userId ? Number(data.userId) : undefined,
+      });
+      setIsEditing(false);
+      // Refresh property data
+      const { data: updatedData } = await apiService.getProperty(Number(propertyId));
+      setProperty({
+        id: updatedData.id?.toString() || '',
+        name: updatedData.name || '',
+        address: updatedData.address || '',
+        description: updatedData.description || '',
+        price: updatedData.currentValue || 0,
+        beds: (updatedData as any).beds || 0,
+        baths: (updatedData as any).baths || 0,
+        area: (updatedData as any).area || 0,
+        image_url: (updatedData as any).image_url || '',
+        features: (updatedData as any).features || [],
+        growth_rate: (updatedData as any).growth_rate || 0,
+        rental_yield: (updatedData as any).rental_yield || 0,
+        purchasePrice: updatedData.purchasePrice || 0,
+        currentValue: updatedData.currentValue || 0,
+        deposit: updatedData.deposit || 0,
+        userId: updatedData.userId?.toString() || '',
+        status: updatedData.status || '',
+      });
+      toast({
+        title: "Success",
+        description: "Property updated successfully",
+      });
     } catch (error) {
-      console.error('Unexpected error updating property:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update property",
+        variant: "destructive"
+      });
     } finally {
       setIsSaving(false);
     }
@@ -178,7 +171,7 @@ const AdminPropertyEdit = () => {
     );
   }
 
-  if (!user || !profile || profile.role !== 'admin' || !property) {
+  if (!user || !profile || profile.role !== 'ADMIN' || !property) {
     return null; // Will redirect in useEffect
   }
 

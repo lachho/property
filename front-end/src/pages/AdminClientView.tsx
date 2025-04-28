@@ -10,8 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Form, FormField, FormItem, FormLabel, FormControl } from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import apiService from '@/services/api';
 
 type ClientProfile = {
   id: string;
@@ -24,6 +24,7 @@ type ClientProfile = {
   partner_income: number | null;
   existing_loans: number | null;
   dependants: number | null;
+  role: string;
 };
 
 const AdminClientView = () => {
@@ -52,102 +53,124 @@ const AdminClientView = () => {
   useEffect(() => {
     if (!isLoading && !user) {
       navigate('/auth');
-    } else if (!isLoading && user && profile && profile.role !== 'admin') {
+    } else if (!isLoading && user && profile && profile.role !== 'ADMIN') {
       navigate('/portfolio-manager');
     }
   }, [isLoading, user, profile, navigate]);
 
   useEffect(() => {
     const fetchClientData = async () => {
-      if (!user || !clientId) return;
-      
+      if (!user) return;
       try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', clientId)
-          .single();
-        
-        if (error) {
-          console.error('Error fetching client:', error);
-          toast({
-            title: "Error",
-            description: "Failed to load client details",
-            variant: "destructive"
-          });
-          navigate('/admin-dashboard');
-        } else if (data) {
-          setClientProfile(data as ClientProfile);
-          form.reset({
-            id: data.id,
-            first_name: data.first_name,
-            last_name: data.last_name,
-            email: data.email,
-            phone: data.phone,
-            marital_status: data.marital_status,
-            gross_income: data.gross_income,
-            partner_income: data.partner_income,
-            existing_loans: data.existing_loans,
-            dependants: data.dependants,
-          });
-        }
+        const { data } = await apiService.getProfileById(clientId);
+        // Map backend Profile to ClientProfile
+        setClientProfile({
+          id: data.id?.toString() || '',
+          first_name: data.firstName || '',
+          last_name: data.lastName || '',
+          email: data.email,
+          phone: data.phone || '',
+          marital_status: '',
+          gross_income: data.grossIncome || 0,
+          partner_income: data.partnerIncome || 0,
+          existing_loans: 0,
+          dependants: data.dependants || 0,
+          role: data.role || '',
+        });
       } catch (error) {
-        console.error('Unexpected error fetching client:', error);
+        console.error('Unexpected error fetching client profile:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load client profile",
+          variant: "destructive"
+        });
       } finally {
         setIsFetching(false);
       }
     };
-
-    if (user && profile?.role === 'admin') {
+    if (user && profile?.role === 'ADMIN') {
       fetchClientData();
     }
-  }, [user, profile, clientId, navigate, form]);
+  }, [user, profile, clientId]);
 
   const handleSave = async (data: ClientProfile) => {
     if (!user || !clientId) return;
     
     setIsSaving(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          first_name: data.first_name,
-          last_name: data.last_name,
-          phone: data.phone,
-          marital_status: data.marital_status,
-          gross_income: data.gross_income,
-          partner_income: data.partner_income,
-          existing_loans: data.existing_loans,
-          dependants: data.dependants,
-        })
-        .eq('id', clientId);
-      
-      if (error) {
-        console.error('Error updating client:', error);
-        toast({
-          title: "Error",
-          description: "Failed to update client details",
-          variant: "destructive"
-        });
-      } else {
-        toast({
-          title: "Success",
-          description: "Client details updated successfully",
-        });
-        setIsEditing(false);
-        // Refresh client data
-        const { data: updatedData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', clientId)
-          .single();
-        
-        if (updatedData) {
-          setClientProfile(updatedData as ClientProfile);
-        }
-      }
+      // Map ClientProfile to backend Profile
+      const profileUpdate = {
+        id: Number(data.id),
+        firstName: data.first_name,
+        lastName: data.last_name,
+        email: data.email,
+        phone: data.phone,
+        address: '',
+        role: data.role,
+        occupation: '',
+        employer: '',
+        employmentLength: 0,
+        employmentType: '',
+        onProbation: false,
+        grossIncome: data.gross_income || 0,
+        nonTaxableIncome: 0,
+        assessWithPartner: false,
+        partnerFirstName: '',
+        partnerLastName: '',
+        partnerDob: null,
+        partnerMobile: '',
+        partnerAddress: '',
+        partnerEmail: '',
+        partnerOccupation: '',
+        partnerEmployer: '',
+        partnerEmploymentLength: 0,
+        partnerEmploymentType: '',
+        partnerOnProbation: false,
+        partnerIncome: data.partner_income || 0,
+        partnerNonTaxableIncome: 0,
+        isRenting: false,
+        rentPerWeek: 0,
+        monthlyLivingExpenses: 0,
+        residenceHistory: '',
+        dependants: data.dependants || 0,
+        dependantsAgeRanges: '',
+        retirementPassiveIncomeGoal: 0,
+        desiredRetirementAge: 0,
+        income: 0,
+        additionalIncome: 0,
+        additionalIncomeSource: '',
+        savings: 0,
+        assets: [],
+        liabilities: [],
+        dateOfBirth: null,
+      };
+      await apiService.updateProfile(clientId, profileUpdate);
+      setIsEditing(false);
+      // Refresh client data
+      const { data: updatedData } = await apiService.getProfileById(clientId);
+      setClientProfile({
+        id: updatedData.id?.toString() || '',
+        first_name: updatedData.firstName || '',
+        last_name: updatedData.lastName || '',
+        email: updatedData.email,
+        phone: updatedData.phone || '',
+        marital_status: '',
+        gross_income: updatedData.grossIncome || 0,
+        partner_income: updatedData.partnerIncome || 0,
+        existing_loans: 0,
+        dependants: updatedData.dependants || 0,
+        role: updatedData.role || '',
+      });
+      toast({
+        title: "Success",
+        description: "Client profile updated successfully",
+      });
     } catch (error) {
-      console.error('Unexpected error updating client:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update client profile",
+        variant: "destructive"
+      });
     } finally {
       setIsSaving(false);
     }
@@ -168,7 +191,7 @@ const AdminClientView = () => {
     );
   }
 
-  if (!user || !profile || profile.role !== 'admin' || !clientProfile) {
+  if (!user || !profile || profile.role !== 'ADMIN' || !clientProfile) {
     return null; // Will redirect in useEffect
   }
 

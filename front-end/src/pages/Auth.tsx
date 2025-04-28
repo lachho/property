@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,30 +9,69 @@ import { Label } from '@/components/ui/label';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Loader2 } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 const Auth = () => {
+  // Login form state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  
+  // Registration form state
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [registerEmail, setRegisterEmail] = useState('');
+  const [registerPassword, setRegisterPassword] = useState('');
+  const [phone, setPhone] = useState('');
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { signIn, signUp, user, isLoading, autoLoginAsAdmin } = useAuth();
+  const { signIn, signUp, user, isLoading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     // Redirect if already logged in
     if (user) {
-      navigate('/portfolio-manager');
+      // Redirect based on user role
+      if (user.role === 'ADMIN') {
+        navigate('/admin-dashboard');
+      } else {
+        navigate('/portfolio-manager');
+      }
     }
   }, [user, navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) return;
+    if (!email || !password) {
+      toast({
+        title: "Missing Information",
+        description: "Please enter both email and password",
+        variant: "destructive"
+      });
+      return;
+    }
 
     try {
       setIsSubmitting(true);
+      console.log("Attempting sign in with:", email);
       await signIn(email, password);
-    } catch (error) {
+      console.log("Sign in successful");
+      // The redirect will happen in the useEffect
+    } catch (error: any) {
       console.error('Sign in error:', error);
+      let errorMessage = "Invalid credentials";
+      if (error.displayMessage) {
+        errorMessage = error.displayMessage;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast({
+        title: "Sign In Failed",
+        description: errorMessage,
+        variant: "destructive"
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -41,23 +79,55 @@ const Auth = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) return;
+    
+    // Validation
+    if (!firstName || !lastName || !registerEmail || !registerPassword) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (registerPassword.length < 6) {
+      toast({
+        title: "Password Too Short",
+        description: "Password must be at least 6 characters long",
+        variant: "destructive"
+      });
+      return;
+    }
 
     try {
       setIsSubmitting(true);
-      await signUp(email, password);
-    } catch (error) {
+      console.log("Attempting sign up with:", { firstName, lastName, email: registerEmail });
+      await signUp(firstName, lastName, registerEmail, registerPassword, phone);
+      console.log("Sign up successful");
+      // The redirect will happen in the useEffect
+      toast({
+        title: "Account Created",
+        description: "You have been registered as a client user"
+      });
+    } catch (error: any) {
       console.error('Sign up error:', error);
+      
+      let errorMessage = "Could not create account";
+      if (error.displayMessage) {
+        errorMessage = error.displayMessage;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast({
+        title: "Sign Up Failed",
+        description: errorMessage,
+        variant: "destructive"
+      });
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const handleAutoLogin = async () => {
-    try {
-      await autoLoginAsAdmin();
-    } catch (error) {
-      console.error('Auto login error:', error);
     }
   };
 
@@ -141,13 +211,35 @@ const Auth = () => {
                 <form onSubmit={handleSignUp}>
                   <CardContent className="space-y-4 pt-4">
                     <div className="space-y-2">
+                      <Label htmlFor="firstName">First Name</Label>
+                      <Input
+                        id="firstName"
+                        type="text"
+                        placeholder="First Name"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName">Last Name</Label>
+                      <Input
+                        id="lastName"
+                        type="text"
+                        placeholder="Last Name"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
                       <Label htmlFor="signup-email">Email</Label>
                       <Input
                         id="signup-email"
                         type="email"
                         placeholder="Email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        value={registerEmail}
+                        onChange={(e) => setRegisterEmail(e.target.value)}
                         required
                       />
                     </div>
@@ -157,10 +249,20 @@ const Auth = () => {
                         id="signup-password"
                         type="password"
                         placeholder="Password (min. 6 characters)"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
+                        value={registerPassword}
+                        onChange={(e) => setRegisterPassword(e.target.value)}
                         required
                         minLength={6}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Phone Number</Label>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        placeholder="Phone Number (optional)"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
                       />
                     </div>
                   </CardContent>
@@ -183,15 +285,6 @@ const Auth = () => {
                 </form>
               </TabsContent>
             </Tabs>
-            <div className="p-6 pt-0">
-              <Button
-                variant="outline"
-                onClick={handleAutoLogin}
-                className="w-full"
-              >
-                Auto Login as Admin (Testing)
-              </Button>
-            </div>
           </Card>
         </div>
       </main>

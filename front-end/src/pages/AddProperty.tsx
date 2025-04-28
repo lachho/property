@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,8 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
 import { Loader2, Plus, UploadCloud } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { useForm } from 'react-hook-form';
+import apiService from '@/services/api';
 
 interface PropertyFormData {
   name: string;
@@ -59,86 +58,34 @@ const AddProperty = () => {
 
   const uploadImage = async (): Promise<string | null> => {
     if (!imageFile || !user) return null;
-    
-    try {
-      // Create a unique file path
-      const fileExt = imageFile.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
-      const filePath = `property-images/${fileName}`;
-      
-      // Upload the file
-      const { error: uploadError } = await supabase.storage
-        .from('properties')
-        .upload(filePath, imageFile);
-      
-      if (uploadError) {
-        throw uploadError;
-      }
-      
-      // Get the public URL
-      const { data } = supabase.storage
-        .from('properties')
-        .getPublicUrl(filePath);
-      
-      return data.publicUrl;
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      return null;
-    }
+    // Image upload logic is not supported with the current backend API
+    // You can implement image upload to your backend in the future if needed
+    return null;
   };
 
-  const onSubmit = async (data: PropertyFormData) => {
-    if (!user || profile?.role !== 'admin') {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "You don't have permission to add properties."
-      });
-      return;
-    }
-    
+  const handleAddProperty = async (data: PropertyFormData) => {
     setIsSubmitting(true);
-    
     try {
-      // Upload image if present
-      let imageUrl = null;
-      if (imageFile) {
-        imageUrl = await uploadImage();
-      }
-      
-      // Add property to database
-      const { data: property, error } = await supabase
-        .from('properties')
-        .insert([{
-          name: data.name,
-          address: data.address,
-          price: data.price,
-          beds: data.beds,
-          baths: data.baths,
-          area: data.area,
-          description: data.description,
-          growth_rate: data.growth_rate,
-          rental_yield: data.rental_yield,
-          image_url: imageUrl,
-          features: data.features?.filter(f => f.trim() !== '') || []
-        }])
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      toast({
-        title: "Success!",
-        description: "Property has been added successfully."
+      await apiService.createProperty({
+        name: data.name,
+        address: data.address,
+        description: data.description,
+        purchasePrice: data.price,
+        currentValue: data.price,
+        deposit: 0,
+        userId: undefined,
+        status: '',
       });
-      
-      navigate(`/property/${property.id}`);
-    } catch (error: any) {
-      console.error('Error adding property:', error);
       toast({
-        variant: "destructive",
+        title: "Success",
+        description: "Property added successfully!",
+      });
+      navigate('/admin-dashboard');
+    } catch (error) {
+      toast({
         title: "Error",
-        description: error.message || "Failed to add property. Please try again."
+        description: "Failed to add property",
+        variant: "destructive"
       });
     } finally {
       setIsSubmitting(false);
@@ -147,7 +94,7 @@ const AddProperty = () => {
 
   // Redirect non-admin users
   React.useEffect(() => {
-    if (!isLoading && (!user || (profile && profile.role !== 'admin'))) {
+    if (!isLoading && (!user || (profile && profile.role !== 'ADMIN'))) {
       navigate('/auth');
     }
   }, [isLoading, user, profile, navigate]);
@@ -178,7 +125,7 @@ const AddProperty = () => {
           </div>
           
           <Card className="p-6">
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={handleSubmit(handleAddProperty)} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <Label htmlFor="name">Property Name</Label>

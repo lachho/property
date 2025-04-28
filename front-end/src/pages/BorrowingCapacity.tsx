@@ -29,9 +29,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { useBorrowingCapacity, BorrowingFormData, LeadData } from '@/hooks/useBorrowingCapacity';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
+import apiService from '@/services/api';
+import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
   grossIncome: z.coerce.number().min(1, "Income must be greater than 0"),
@@ -48,12 +49,18 @@ const leadFormSchema = z.object({
   phone: z.string().min(8, "Please enter a valid phone number"),
 });
 
+const calculateCapacity = (data: any): number => {
+  const totalIncome = data.grossIncome + (data.partnerIncome || 0) - 5000 * data.dependants;
+  const borrowingCapacity = totalIncome * 6 - data.existingLoans;
+  return Math.max(0, borrowingCapacity);
+};
+
 const BorrowingCapacity = () => {
   const [formStep, setFormStep] = useState(1);
   const [showResults, setShowResults] = useState(false);
   const [borrowingCapacity, setBorrowingCapacity] = useState(0);
-  const [formData, setFormData] = useState<BorrowingFormData | null>(null);
-  const { calculateCapacity, submitLead, isSubmitting } = useBorrowingCapacity();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -77,18 +84,8 @@ const BorrowingCapacity = () => {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      // Create a properly typed BorrowingFormData object
-      const borrowingFormData: BorrowingFormData = {
-        grossIncome: values.grossIncome,
-        maritalStatus: values.maritalStatus,
-        partnerIncome: values.partnerIncome,
-        dependants: values.dependants,
-        existingLoans: values.existingLoans,
-      };
-      
-      const calculatedCapacity = calculateCapacity(borrowingFormData);
+      const calculatedCapacity = calculateCapacity(values);
       setBorrowingCapacity(calculatedCapacity);
-      setFormData(borrowingFormData);
       setShowResults(true);
     } catch (error) {
       console.error("Error calculating borrowing capacity:", error);
@@ -104,20 +101,37 @@ const BorrowingCapacity = () => {
   };
 
   const handleLeadSubmit = async (data: z.infer<typeof leadFormSchema>) => {
-    if (!formData) return;
-    
-    // Ensure data has all required fields for LeadData type
-    const leadData: LeadData = {
-      name: data.name || "",
-      email: data.email || "",
-      phone: data.phone || ""
-    };
-    
-    const success = await submitLead(leadData, formData, borrowingCapacity);
-    if (success) {
-      // Close modal after successful submission
+    setIsSubmitting(true);
+    try {
+      // Compose the payload for submitBorrowingLead
+      const payload = {
+        firstName: data.name.split(' ')[0],
+        lastName: data.name.split(' ').slice(1).join(' '),
+        email: data.email,
+        phone: data.phone,
+        grossIncome: form.getValues('grossIncome'),
+        partnerIncome: form.getValues('partnerIncome') || null,
+        dependants: form.getValues('dependants'),
+        existingLoans: form.getValues('existingLoans'),
+        maritalStatus: form.getValues('maritalStatus'),
+        borrowingCapacity: borrowingCapacity
+      };
+      await apiService.submitBorrowingLead(payload);
+      toast({
+        title: 'Success!',
+        description: 'Your report will be emailed to you shortly.'
+      });
       setShowResults(false);
-      setFormStep(3);
+      return true;
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error?.message || 'Failed to submit your information. Please try again.'
+      });
+      return false;
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -279,8 +293,15 @@ const BorrowingCapacity = () => {
                         />
                       </div>
 
-                      <Button type="submit" className="w-full">
-                        Calculate My Borrowing Capacity
+                      <Button type="submit" className="w-full" disabled={isSubmitting}>
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Submitting...
+                          </>
+                        ) : (
+                          "Get Your Free Customized Report"
+                        )}
                       </Button>
                     </form>
                   </Form>
@@ -415,7 +436,7 @@ const BorrowingCapacity = () => {
                         {isSubmitting ? (
                           <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Sending...
+                            Submitting...
                           </>
                         ) : (
                           "Get Your Free Customized Report"

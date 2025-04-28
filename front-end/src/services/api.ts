@@ -1,6 +1,11 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 
-const API_URL = 'http://localhost:8080';
+// Try both paths - some Spring Boot configurations use /api prefix, others don't
+const API_BASE_URL = 'http://localhost:8080';
+const API_URL = `${API_BASE_URL}/api`;
+
+// Enable debugging to see request/response data
+const DEBUG = true;
 
 // Request interfaces
 export interface LoginRequest {
@@ -9,16 +14,21 @@ export interface LoginRequest {
 }
 
 export interface RegisterRequest {
+    firstName: string;
+    lastName: string;
     email: string;
     password: string;
-    name: string;
-    phoneNumber: string;
+    phone: string;
 }
 
 // Response interfaces
 export interface AuthResponse {
-    token: string;
-    refreshToken: string;
+    accessToken: string;
+    refreshToken?: string;
+    email: string;
+    role: string;
+    firstName?: string;
+    lastName?: string;
 }
 
 export interface Asset {
@@ -57,6 +67,7 @@ export interface Profile {
     phone: string;
     address: string;
     email: string;
+    role?: string;
     
     // Occupation details
     occupation: string;
@@ -128,7 +139,11 @@ const api: AxiosInstance = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
+    withCredentials: false // Changed to false to match CORS config
 });
+
+// Log URL for debugging
+console.log('API URL configured as:', API_URL);
 
 // Request interceptor to add token
 api.interceptors.request.use(
@@ -137,19 +152,47 @@ api.interceptors.request.use(
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
+        if (DEBUG) {
+            console.log('Request:', {
+                url: config.url,
+                method: config.method,
+                headers: config.headers,
+                data: config.data
+            });
+        }
         return config;
     },
-    (error) => Promise.reject(error)
+    (error) => {
+        console.error('Request error:', error);
+        return Promise.reject(error);
+    }
 );
 
 // Response interceptor to handle token expiration
 api.interceptors.response.use(
-    (response) => response,
+    (response) => {
+        if (DEBUG) {
+            console.log('Response:', {
+                status: response.status,
+                data: response.data,
+                headers: response.headers
+            });
+        }
+        return response;
+    },
     async (error) => {
+        if (DEBUG) {
+            console.error('Response error:', {
+                status: error.response?.status,
+                data: error.response?.data,
+                message: error.message
+            });
+        }
+        
         const originalRequest = error.config;
         
         // If the error is 401 and we haven't already attempted to refresh
-        if (error.response.status === 401 && !originalRequest._retry) {
+        if (error.response?.status === 401 && !originalRequest._retry) {
             originalRequest._retry = true;
             
             try {
@@ -164,12 +207,14 @@ api.interceptors.response.use(
                 const response = await api.post('/auth/refresh', { refreshToken });
                 
                 // Update tokens in local storage
-                const { token, refreshToken: newRefreshToken } = response.data;
-                localStorage.setItem('token', token);
-                localStorage.setItem('refreshToken', newRefreshToken);
+                const { accessToken, refreshToken: newRefreshToken } = response.data;
+                localStorage.setItem('token', accessToken);
+                if (newRefreshToken) {
+                    localStorage.setItem('refreshToken', newRefreshToken);
+                }
                 
                 // Retry the original request with the new token
-                originalRequest.headers.Authorization = `Bearer ${token}`;
+                originalRequest.headers.Authorization = `Bearer ${accessToken}`;
                 return api(originalRequest);
             } catch (refreshError) {
                 // If refresh fails, redirect to login
@@ -188,20 +233,112 @@ api.interceptors.response.use(
 const apiService = {
     // Auth endpoints
     login: (data: LoginRequest): Promise<AxiosResponse<AuthResponse>> => {
-        return api.post('/auth/login', data);
+        console.log('Login request:', data);
+        
+        // Helper function to format the error message
+        const formatErrorMessage = (error: any) => {
+            if (error.response?.data?.message) {
+                return error.response.data.message;
+            } else if (error.response?.data?.error) {
+                return error.response.data.error;
+            } else if (error.message) {
+                return error.message;
+            }
+            return 'Login failed';
+        };
+        
+        // First try with API_URL (includes /api prefix)
+        return api.post('/auth/login', data)
+            .then(response => {
+                console.log('Login successful response:', response.data);
+                return response;
+            })
+            .catch(error => {
+                console.error('Login error with /api/auth/login:', {
+                    message: error.message,
+                    status: error.response?.status,
+                    data: error.response?.data
+                });
+                
+                // Try direct endpoint without /api prefix
+                return axios.post(`${API_BASE_URL}/auth/login`, data, {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Login error with /auth/login:', {
+                    message: error.message,
+                    status: error.response?.status,
+                    data: error.response?.data
+                });
+                
+                // Provide meaningful error info back to user
+                error.displayMessage = formatErrorMessage(error);
+                throw error;
+            });
     },
     
     register: (data: RegisterRequest): Promise<AxiosResponse<AuthResponse>> => {
-        return api.post('/auth/register', data);
+        console.log('Register request:', data);
+        
+        // Helper function to format the error message
+        const formatErrorMessage = (error: any) => {
+            if (error.response?.data?.message) {
+                return error.response.data.message;
+            } else if (error.response?.data?.error) {
+                return error.response.data.error;
+            } else if (error.message) {
+                return error.message;
+            }
+            return 'Registration failed';
+        };
+        
+        // First try with API_URL (includes /api prefix)
+        return api.post('/auth/register', data)
+            .then(response => {
+                console.log('Registration successful response:', response.data);
+                return response;
+            })
+            .catch(error => {
+                console.error('Registration error with /api/auth/register:', {
+                    message: error.message,
+                    status: error.response?.status,
+                    data: error.response?.data
+                });
+                
+                // Try direct endpoint without /api prefix
+                return axios.post(`${API_BASE_URL}/auth/register`, data, {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Registration error with /auth/register:', {
+                    message: error.message,
+                    status: error.response?.status, 
+                    data: error.response?.data
+                });
+                
+                // Provide meaningful error info back to user
+                error.displayMessage = formatErrorMessage(error);
+                throw error;
+            });
     },
     
     // Profile endpoints
     getProfile: (): Promise<AxiosResponse<Profile>> => {
-        return api.get('/profile');
+        return api.get('/profiles/current');
     },
     
-    updateProfile: (profile: Profile): Promise<AxiosResponse<Profile>> => {
-        return api.put('/profile', profile);
+    getProfileById: (id: string): Promise<AxiosResponse<Profile>> => {
+        return api.get(`/profiles/${id}`);
+    },
+    
+    updateProfile: (id: string, profile: Profile): Promise<AxiosResponse<Profile>> => {
+        return api.put(`/profiles/${id}`, profile);
     },
     
     // Asset endpoints
@@ -270,6 +407,79 @@ const apiService = {
     
     createProfileDetails: (data: ProfileDetailsDto): Promise<AxiosResponse<ProfileDetailsDto>> => {
         return api.post('/profile/details', data);
+    },
+    
+    // Mortgage leads endpoint 
+    submitMortgageLead: (data: {
+        firstName: string;
+        lastName: string;
+        email: string;
+        phone: string;
+        loanAmount?: number;
+        interestRate?: number;
+        loanTerm?: string;
+        repaymentFrequency?: string;
+        loanType?: string;
+    }): Promise<AxiosResponse<any>> => {
+        return api.post('/mortgage-leads', data);
+    },
+    
+    // Borrowing capacity leads endpoint
+    submitBorrowingLead: (data: {
+        firstName: string;
+        lastName: string;
+        email: string;
+        phone: string;
+        grossIncome: number;
+        partnerIncome: number | null;
+        dependants: number;
+        existingLoans: number;
+        maritalStatus: string;
+        borrowingCapacity: number;
+    }): Promise<AxiosResponse<any>> => {
+        return api.post('/borrowing-leads', data);
+    },
+
+    // Client endpoints
+    getAllClients: (): Promise<AxiosResponse<Profile[]>> => {
+        return api.get('/profiles');
+    },
+
+    // Property endpoints (alias for getProperties)
+    getAllProperties: (): Promise<AxiosResponse<Property[]>> => {
+        return api.get('/properties');
+    },
+
+    // Assign property to client
+    assignPropertyToClient: (clientId: string, propertyId: string): Promise<AxiosResponse<any>> => {
+        return api.post('/assign-property', { clientId, propertyId });
+    },
+
+    // Fetch saved properties for a user
+    getSavedProperties: (userId: string, purchased?: boolean): Promise<AxiosResponse<any[]>> => {
+        const params: any = { userId };
+        if (typeof purchased === 'boolean') params.purchased = purchased;
+        return api.get('/saved_properties', { params });
+    },
+
+    // Fetch properties by an array of IDs
+    getPropertiesByIds: (ids: string[]): Promise<AxiosResponse<any[]>> => {
+        return api.get('/properties', { params: { ids: ids.join(',') } });
+    },
+
+    // Check if a property is saved by a user
+    isPropertySaved: (userId: string, propertyId: string): Promise<AxiosResponse<any>> => {
+        return api.get(`/saved-properties/check`, { params: { userId, propertyId } });
+    },
+
+    // Add a property to a user's saved list
+    addSavedProperty: (userId: string, propertyId: string): Promise<AxiosResponse<any>> => {
+        return api.post('/saved-properties/add', { userId, propertyId });
+    },
+
+    // Remove a property from a user's saved list
+    removeSavedProperty: (userId: string, propertyId: string): Promise<AxiosResponse<any>> => {
+        return api.delete(`/saved-properties/remove`, { params: { userId, propertyId } });
     }
 };
 

@@ -18,6 +18,7 @@ import AddProperty from "./pages/AddProperty";
 import AssignProperty from "./pages/AssignProperty";
 import NotFound from "./pages/NotFound";
 import AdminClientForm from "./pages/AdminClientForm";
+import HookTester from "./components/HookTester";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,7 @@ const App = () => (
             <Route path="/assign-property" element={<AssignProperty />} />
             <Route path="/admin-client-form" element={<AdminClientForm />} />
             <Route path="/admin-client-form/:clientId" element={<AdminClientForm />} />
+            <Route path="/hooks-test" element={<HookTester />} />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

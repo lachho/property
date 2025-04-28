@@ -6,6 +6,8 @@ import com.property.service.ProfileService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -53,5 +55,14 @@ public class ProfileController {
     public ResponseEntity<Void> deleteProfile(@PathVariable UUID id) {
         profileService.deleteProfile(id);
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/current")
+    public ResponseEntity<Profile> getCurrentProfile() {
+        // Get the currently authenticated user
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = authentication.getName();
+        Profile profile = profileService.getProfileByEmail(email);
+        return ResponseEntity.ok(profile);
     }
 } 

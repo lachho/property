@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,11 +6,11 @@ import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Home, ArrowLeft, Heart, TrendingUp, MapPin } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import apiService from '@/services/api';
 
 // Sample growth data for charts
 const propertyGrowthData = [
@@ -58,16 +57,8 @@ const PropertyDetails = () => {
       
       try {
         // Fetch property details
-        const { data: propertyData, error: propertyError } = await supabase
-          .from('properties')
-          .select('*')
-          .eq('id', propertyId)
-          .maybeSingle();
+        const { data: propertyData } = await apiService.getProperty(Number(propertyId));
         
-        if (propertyError) {
-          throw propertyError;
-        }
-
         if (!propertyData) {
           toast({
             title: "Property not found",
@@ -81,18 +72,8 @@ const PropertyDetails = () => {
         setProperty(propertyData);
         
         // Check if property is saved by user
-        const { data: savedData, error: savedError } = await supabase
-          .from('saved_properties')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('property_id', propertyId)
-          .maybeSingle();
-        
-        if (savedError) {
-          console.error('Error checking saved status:', savedError);
-        } else {
-          setIsSaved(!!savedData);
-        }
+        const { data: savedData } = await apiService.isPropertySaved(user.id, propertyId);
+        setIsSaved(!!savedData);
       } catch (error) {
         console.error('Error fetching property details:', error);
         toast({
@@ -116,14 +97,7 @@ const PropertyDetails = () => {
     try {
       if (isSaved) {
         // Remove from saved properties
-        const { error } = await supabase
-          .from('saved_properties')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('property_id', propertyId);
-        
-        if (error) throw error;
-        
+        await apiService.removeSavedProperty(user.id, propertyId);
         setIsSaved(false);
         toast({
           title: "Property removed",
@@ -131,15 +105,7 @@ const PropertyDetails = () => {
         });
       } else {
         // Add to saved properties
-        const { error } = await supabase
-          .from('saved_properties')
-          .insert({
-            user_id: user.id,
-            property_id: propertyId
-          });
-        
-        if (error) throw error;
-        
+        await apiService.addSavedProperty(user.id, propertyId);
         setIsSaved(true);
         toast({
           title: "Property saved",

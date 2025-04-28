@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import apiService from '@/services/api';
 
 // Types
 export interface BorrowingFormData {
@@ -35,94 +35,36 @@ export const useBorrowingCapacity = () => {
     setIsSubmitting(true);
     
     try {
-      // Generate a random password
-      const randomPassword = Math.random().toString(36).slice(-10);
+      console.log("Submitting borrowing capacity lead data:", { leadData, formData, borrowingCapacity });
       
-      // First, check if the user already exists
-      const { data: existingUser } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', leadData.email)
-        .maybeSingle();
-      
-      if (!existingUser) {
-        console.log("Creating new user account");
-        
-        // Create a new user account through auth to bypass RLS
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: leadData.email,
-          password: randomPassword,
-          options: {
-            data: {
-              first_name: leadData.name.split(' ')[0],
-              last_name: leadData.name.split(' ').slice(1).join(' '),
-              phone: leadData.phone,
-              gross_income: formData.grossIncome,
-              partner_income: formData.partnerIncome || null,
-              dependants: formData.dependants,
-              existing_loans: formData.existingLoans,
-              marital_status: formData.maritalStatus,
-              borrowing_capacity: borrowingCapacity
-            }
-          }
-        });
-
-        if (authError) throw authError;
-      } else {
-        console.log("User already exists, updating their profile with the latest information");
-        
-        // Update the existing user profile with the new information
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({
-            gross_income: formData.grossIncome,
-            partner_income: formData.partnerIncome || null,
-            dependants: formData.dependants,
-            existing_loans: formData.existingLoans,
-            marital_status: formData.maritalStatus,
-            phone: leadData.phone,
-            borrowing_capacity: borrowingCapacity
-          })
-          .eq('id', existingUser.id);
-        
-        if (updateError) throw updateError;
-      }
-
-      // Send email report using the edge function
-      const { error: emailError } = await supabase.functions.invoke('send-borrowing-report', {
-        body: {
-          name: leadData.name,
+      // Submit to backend API
+      const response = await apiService.submitBorrowingLead({
+        firstName: leadData.name.split(' ')[0],
+        lastName: leadData.name.split(' ').slice(1).join(' '),
           email: leadData.email,
           phone: leadData.phone,
           grossIncome: formData.grossIncome,
-          partnerIncome: formData.partnerIncome,
+        partnerIncome: formData.partnerIncome || null,
           dependants: formData.dependants,
           existingLoans: formData.existingLoans,
           maritalStatus: formData.maritalStatus,
           borrowingCapacity: borrowingCapacity
-        }
       });
 
-      if (emailError) throw emailError;
+      console.log("Borrowing capacity lead submitted to backend:", response.data);
 
       toast({
         title: "Success!",
         description: "Your report will be emailed to you shortly."
       });
-      
-      // Sign out the user if they were automatically signed in
-      const { data: session } = await supabase.auth.getSession();
-      if (session?.session?.user) {
-        await supabase.auth.signOut();
-      }
 
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error in lead submission:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message || "Failed to submit your information. Please try again."
+        description: error instanceof Error ? error.message : "Failed to submit your information. Please try again."
       });
       return false;
     } finally {

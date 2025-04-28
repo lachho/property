@@ -1,7 +1,37 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { User, Session } from '@supabase/supabase-js';
 import { toast } from '@/hooks/use-toast';
+import apiService, { LoginRequest, RegisterRequest, Profile as ApiProfile } from '@/services/api';
+
+// Simple function to decode JWT tokens
+function parseJwt(token: string) {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    console.error("Failed to parse JWT token", e);
+    return null;
+  }
+}
+
+interface User {
+  id?: string;
+  email: string;
+  role: 'ADMIN' | 'CLIENT';
+  firstName?: string;
+  lastName?: string;
+}
+
+interface JwtPayload {
+  sub: string;
+  email: string;
+  role: string;
+  exp: number;
+  iat: number;
+}
 
 // Define a proper Profile interface with all needed properties
 interface Profile {
@@ -9,7 +39,7 @@ interface Profile {
   first_name?: string;
   last_name?: string;
   email: string;
-  role: 'client' | 'admin';
+  role: 'ADMIN' | 'CLIENT';
   phone?: string;
   gross_income?: number;
   partner_income?: number | null;
@@ -31,11 +61,10 @@ interface Profile {
 
 interface AuthContextType {
   user: User | null;
-  session: Session | null;
   profile: Profile | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, userData?: any) => Promise<void>;
+  signUp: (firstName: string, lastName: string, email: string, password: string, phone: string) => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (data: Partial<Profile>) => Promise<void>;
   autoLoginAsAdmin: () => Promise<void>;
@@ -45,133 +74,237 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     console.log("Auth provider initialized");
-    // Set up auth state listener FIRST to catch all auth events
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log("Auth state changed:", _event, session?.user?.id);
-      setSession(session);
-      setUser(session?.user ?? null);
-    });
-
-    // THEN check for existing session
-    const getInitialSession = async () => {
+    
+    // Check if there's a token to determine if user is already logged in
+    const checkAuthStatus = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        console.log("Initial session check:", session?.user?.id);
-        setSession(session);
-        setUser(session?.user ?? null);
+        const token = localStorage.getItem('token');
+        if (!token) {
+          setIsLoading(false);
+          return;
+        }
+
+        try {
+          // Decode the token to get user information
+          const decodedToken = parseJwt(token);
+          const userId = decodedToken.sub;
+          const userEmail = decodedToken.email;
+          const userRole = decodedToken.role as 'ADMIN' | 'CLIENT';
+          
+          console.log("Decoded token:", decodedToken);
+          
+          // Set basic user info from token
+          setUser({
+            id: userId,
+            email: userEmail,
+            role: userRole
+          });
+          
+          // Try to fetch complete profile
+          await fetchUserProfile(userId);
+        } catch (decodeError) {
+          console.error("Error decoding token:", decodeError);
+          localStorage.removeItem('token');
+          localStorage.removeItem('refreshToken');
+          setIsLoading(false);
+        }
       } catch (error) {
-        console.error("Error getting session:", error);
-      } finally {
+        console.error("Error checking auth status:", error);
+        // Clear potentially invalid tokens
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
         setIsLoading(false);
       }
     };
 
-    getInitialSession();
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    checkAuthStatus();
   }, []);
 
-  useEffect(() => {
-    const getProfile = async () => {
-      if (!user) {
-        console.log("No user, setting profile to null");
-        setProfile(null);
-        setIsLoading(false);
-        return;
-      }
-
+  const fetchUserProfile = async (userId: string) => {
+    try {
       setIsLoading(true);
-      console.log("Fetching profile for user:", user.id);
       
-      try {
-        // Query the profiles table for the current user
-        let { data, error, status } = await supabase
-          .from('profiles')
-          .select(`
-            id, first_name, last_name, email, role, phone, 
-            gross_income, partner_income, existing_loans, dependants, 
-            marital_status, date_of_birth, borrowing_capacity, 
-            purchase_timeframe, loan_amount, interest_rate, loan_term, 
-            repayment_frequency, loan_type, additional_repayments, 
-            monthly_repayment
-          `)
-          .eq('id', user.id)
-          .single();
-
-        if (error) {
-          if (status === 406) {
-            console.warn("No profile found, user may be new");
-          } else {
-            throw error;
-          }
-        }
-
-        if (data) {
-          console.log("Profile fetched successfully:", data);
-          setProfile(data as Profile);
-        } else {
-          console.log("No profile data returned");
-        }
-      } catch (error: any) {
-        console.error("Error fetching profile:", error.message, error);
-      } finally {
-        setIsLoading(false);
+      console.log("Fetching user profile for ID:", userId);
+      
+      // Get user profile from API using the ID from the token
+      const { data: profileData } = await apiService.getProfileById(userId);
+      
+      console.log("Profile data received:", profileData);
+      
+      if (profileData) {
+        // Convert API profile to our internal Profile type
+        const userProfile: Profile = {
+          id: profileData.id?.toString() || '',
+          email: profileData.email || '',
+          role: (profileData.role?.toUpperCase() as 'ADMIN' | 'CLIENT') || 'CLIENT',
+          first_name: profileData.firstName || '',
+          last_name: profileData.lastName || '',
+          phone: profileData.phone || '',
+          gross_income: profileData.grossIncome || 0,
+          partner_income: profileData.partnerIncome || null,
+          dependants: profileData.dependants || null,
+          date_of_birth: profileData.dateOfBirth as string | null || null,
+        };
+        
+        console.log("Converted user profile:", userProfile);
+        
+        setProfile(userProfile);
+        
+        // Update user info with complete data
+        setUser(prev => ({
+          ...prev!,
+          id: profileData.id?.toString() || prev?.id || '',
+          email: profileData.email || prev?.email || '',
+          role: (profileData.role?.toUpperCase() as 'ADMIN' | 'CLIENT') || prev?.role || 'CLIENT',
+          firstName: profileData.firstName || prev?.firstName,
+          lastName: profileData.lastName || prev?.lastName,
+        }));
+        
+        console.log("User and profile state updated");
+      } else {
+        console.warn("No profile data received from API");
       }
-    };
-
-    getProfile();
-  }, [user]);
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      // Don't clear user state here, since we already have basic info from token
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const signIn = async (email: string, password: string): Promise<void> => {
     setIsLoading(true);
     try {
       console.log("Signing in:", email);
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
       
-      if (error) {
-        console.error("Sign in error:", error);
-        throw error;
+      const loginRequest: LoginRequest = { email, password };
+      const { data } = await apiService.login(loginRequest);
+      
+      // Store tokens
+      localStorage.setItem('token', data.accessToken);
+      if (data.refreshToken) {
+        localStorage.setItem('refreshToken', data.refreshToken);
       }
       
-      console.log("Sign in successful:", data?.user?.id);
+      try {
+        // Decode the token to get user ID
+        const decodedToken = parseJwt(data.accessToken);
+        const userId = decodedToken.sub;
+        
+        // Create basic user info
+        setUser({
+          id: userId,
+          email: data.email,
+          role: data.role.toUpperCase() as 'ADMIN' | 'CLIENT',
+          firstName: data.firstName,
+          lastName: data.lastName
+        });
+        
+        // Fetch complete user profile
+        await fetchUserProfile(userId);
+      } catch (decodeError) {
+        console.error("Error decoding token:", decodeError);
+        // Create basic user from response data if token decode fails
+        setUser({
+          email: data.email,
+          role: data.role.toUpperCase() as 'ADMIN' | 'CLIENT',
+          firstName: data.firstName,
+          lastName: data.lastName
+        });
+      }
+      
+      console.log("Sign in successful");
     } catch (error: any) {
-      console.error("Error signing in:", error.message);
+      console.error("Error signing in:", error.message, error);
+      toast({
+        title: "Sign In Failed",
+        description: error.response?.data?.message || "Invalid credentials",
+        variant: "destructive"
+      });
       throw error;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const signUp = async (email: string, password: string, userData?: any): Promise<void> => {
+  const signUp = async (firstName: string, lastName: string, email: string, password: string, phone: string): Promise<void> => {
     setIsLoading(true);
     try {
       console.log("Signing up:", email);
       
-      const { data, error } = await supabase.auth.signUp({
+      // Create register request with required fields
+      const registerRequest: RegisterRequest = {
+        firstName,
+        lastName,
         email,
         password,
-        options: {
-          data: userData || {} // Include any additional user metadata
-        }
+        phone
+      };
+      
+      console.log("Registration request:", JSON.stringify(registerRequest));
+      
+      const { data } = await apiService.register(registerRequest);
+      
+      // Store tokens
+      localStorage.setItem('token', data.accessToken);
+      if (data.refreshToken) {
+        localStorage.setItem('refreshToken', data.refreshToken);
+      }
+      
+      try {
+        // Decode the token to get user ID
+        const decodedToken = parseJwt(data.accessToken);
+        const userId = decodedToken.sub;
+        
+        // Create basic user info
+        setUser({
+          id: userId,
+          email: data.email,
+          role: data.role.toUpperCase() as 'ADMIN' | 'CLIENT',
+          firstName: data.firstName || firstName,
+          lastName: data.lastName || lastName
+        });
+        
+        // Fetch complete user profile
+        await fetchUserProfile(userId);
+      } catch (decodeError) {
+        console.error("Error decoding token:", decodeError);
+        // Create basic user from response data if token decode fails
+        setUser({
+          email: data.email,
+          role: data.role.toUpperCase() as 'ADMIN' | 'CLIENT',
+          firstName: data.firstName || firstName,
+          lastName: data.lastName || lastName
+        });
+      }
+      
+      console.log("Sign up successful");
+      
+      toast({
+        title: "Account Created",
+        description: "Your account has been created successfully"
+      });
+    } catch (error: any) {
+      console.error("Error signing up:", error.message, error);
+      
+      let errorMessage = "Could not create account";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast({
+        title: "Sign Up Failed",
+        description: errorMessage,
+        variant: "destructive"
       });
       
-      if (error) throw error;
-      console.log("Sign up successful, user created:", data?.user?.id);
-      
-      // Profile is created via database trigger
-    } catch (error: any) {
-      console.error("Error signing up:", error.message);
       throw error;
     } finally {
       setIsLoading(false);
@@ -182,8 +315,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     try {
       console.log("Signing out");
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      
+      // Clear tokens
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      
+      // Clear state
+      setUser(null);
+      setProfile(null);
+      
       console.log("Sign out successful");
     } catch (error: any) {
       console.error("Error signing out:", error.message);
@@ -193,26 +333,61 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateProfile = async (data: Partial<Profile>): Promise<void> => {
-    if (!user) {
-      console.error("Cannot update profile: No user logged in");
+    if (!user?.id) {
+      console.error("Cannot update profile: No user ID available");
       return;
     }
     
     setIsLoading(true);
     try {
       console.log("Updating profile for user:", user.id, data);
-      const { error } = await supabase
-        .from('profiles')
-        .update(data)
-        .eq('id', user.id);
-
-      if (error) throw error;
-
-      console.log("Profile updated successfully");
-      setProfile((oldProfile) => ({
-        ...oldProfile,
+      
+      // Convert our internal Profile to API Profile format
+      const apiProfileData: Partial<ApiProfile> = {
+        id: profile?.id ? parseInt(profile.id) : undefined,
+        email: data.email || profile?.email,
+        firstName: data.first_name || profile?.first_name,
+        lastName: data.last_name || profile?.last_name,
+        phone: data.phone || profile?.phone,
+        grossIncome: data.gross_income || profile?.gross_income,
+        partnerIncome: data.partner_income || profile?.partner_income,
+        dependants: data.dependants || profile?.dependants,
+        dateOfBirth: data.date_of_birth || profile?.date_of_birth,
+        role: data.role || profile?.role
+      };
+      
+      // Update profile data through API
+      const { data: responseData } = await apiService.updateProfile(user.id, apiProfileData as ApiProfile);
+      
+      // Convert API response back to our Profile format
+      const updatedProfile: Profile = {
+        ...profile!,
         ...data,
-      } as Profile));
+        id: responseData.id?.toString() || profile?.id || '',
+        email: responseData.email,
+        role: (responseData.role?.toUpperCase() as 'ADMIN' | 'CLIENT') || profile?.role || 'CLIENT',
+        first_name: responseData.firstName,
+        last_name: responseData.lastName,
+        phone: responseData.phone,
+        gross_income: responseData.grossIncome,
+        partner_income: responseData.partnerIncome,
+        dependants: responseData.dependants,
+        date_of_birth: responseData.dateOfBirth as string | null,
+      };
+      
+      // Update local profile state
+      setProfile(updatedProfile);
+      
+      // Update user state with new info
+      setUser(prev => ({
+        ...prev!,
+        email: responseData.email || prev?.email || '',
+        role: (responseData.role?.toUpperCase() as 'ADMIN' | 'CLIENT') || prev?.role || 'CLIENT',
+        firstName: responseData.firstName || prev?.firstName,
+        lastName: responseData.lastName || prev?.lastName,
+      }));
+      
+      console.log("Profile updated successfully");
       
       toast({
         title: "Profile Updated",
@@ -222,7 +397,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error("Error updating profile:", error.message);
       toast({
         title: "Update Failed",
-        description: error.message,
+        description: error.response?.data?.message || "Could not update profile",
         variant: "destructive"
       });
     } finally {
@@ -234,13 +409,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     try {
       console.log("Auto login as admin");
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: 'admin@example.com',
-        password: 'password123',
-      });
-      
-      if (error) throw error;
-      console.log("Admin auto login successful:", data?.user?.id);
+      // Always use admin@example.com for consistency
+      await signIn('admin@example.com', 'admin123');
+      console.log("Admin auto login successful");
     } catch (error: any) {
       console.error("Error in auto login:", error.message);
       throw error;
@@ -249,23 +420,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const value = { 
-    user, 
-    session,
-    profile, 
-    isLoading, 
-    signIn, 
-    signUp, 
-    signOut, 
-    updateProfile, 
-    autoLoginAsAdmin 
+  const value = {
+    user,
+    profile,
+    isLoading,
+    signIn,
+    signUp,
+    signOut,
+    updateProfile,
+    autoLoginAsAdmin,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {

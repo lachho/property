@@ -1,8 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import PortfolioSummary from '@/components/PortfolioSummary';
@@ -14,6 +12,7 @@ import { toast } from '@/hooks/use-toast';
 import PortfolioValueChart from '@/components/charts/PortfolioValueChart';
 import PropertyAllocationChart from '@/components/charts/PropertyAllocationChart';
 import CashFlowChart from '@/components/charts/CashFlowChart';
+import apiService from '@/services/api';
 
 type Property = {
   id: string;
@@ -128,29 +127,14 @@ const ClientDashboard = () => {
   useEffect(() => {
     const fetchProperties = async () => {
       if (!user) return;
-      
       try {
         // Fetch all properties assigned to the user through saved_properties
-        const { data: savedPropertiesData, error: savedPropertiesError } = await supabase
-          .from('saved_properties')
-          .select('property_id')
-          .eq('user_id', user.id);
-        
-        if (savedPropertiesError) {
-          throw savedPropertiesError;
-        }
+        const { data: savedPropertiesData } = await apiService.getSavedProperties(user.id);
         
         if (savedPropertiesData && savedPropertiesData.length > 0) {
           const propertyIds = savedPropertiesData.map(item => item.property_id);
           
-          const { data: propertiesData, error: propertiesError } = await supabase
-            .from('properties')
-            .select('*')
-            .in('id', propertyIds);
-          
-          if (propertiesError) {
-            throw propertiesError;
-          }
+          const { data: propertiesData } = await apiService.getPropertiesByIds(propertyIds);
           
           setProperties(propertiesData || []);
         } else {
@@ -158,27 +142,12 @@ const ClientDashboard = () => {
         }
         
         // Fetch saved properties (not yet purchased)
-        const { data: savedData, error: savedError } = await supabase
-          .from('saved_properties')
-          .select('property_id')
-          .eq('user_id', user.id)
-          .is('purchased', false);
-          
-        if (savedError) {
-          throw savedError;
-        }
+        const { data: savedData } = await apiService.getSavedProperties(user.id, false);
         
         if (savedData && savedData.length > 0) {
           const savedIds = savedData.map(item => item.property_id);
           
-          const { data: savedPropsData, error: savedPropsError } = await supabase
-            .from('properties')
-            .select('*')
-            .in('id', savedIds);
-          
-          if (savedPropsError) {
-            throw savedPropsError;
-          }
+          const { data: savedPropsData } = await apiService.getPropertiesByIds(savedIds);
           
           setSavedProperties(savedPropsData || []);
         } else {

@@ -6,9 +6,9 @@ import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, UserCog, Home, Plus, Link as LinkIcon, FileQuestion, UserRound, DollarSign, Package } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
+import apiService from '@/services/api';
 
 // Types
 type ClientProfile = {
@@ -17,7 +17,7 @@ type ClientProfile = {
   last_name: string | null;
   email: string;
   phone: string | null;
-  role: 'client' | 'admin';
+  role: 'CLIENT' | 'ADMIN';
 };
 
 type Property = {
@@ -42,7 +42,7 @@ const AdminDashboard = () => {
   useEffect(() => {
     if (!isLoading && !user) {
       navigate('/auth');
-    } else if (!isLoading && user && profile && profile.role !== 'admin') {
+    } else if (!isLoading && user && profile && profile.role !== 'ADMIN') {
       // Redirect non-admin users away from admin dashboard
       navigate('/portfolio-manager');
     }
@@ -51,25 +51,25 @@ const AdminDashboard = () => {
   useEffect(() => {
     const fetchClients = async () => {
       if (!user) return;
-      
       try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id, first_name, last_name, email, phone, role')
-          .eq('role', 'client');
-        
-        if (error) {
-          console.error('Error fetching clients:', error);
-          toast({
-            title: "Error",
-            description: "Failed to load clients",
-            variant: "destructive"
-          });
-        } else {
-          setClients(data || []);
-        }
+        const { data } = await apiService.getAllClients();
+        setClients(
+          (data || []).map((profile) => ({
+            id: profile.id?.toString() || '',
+            first_name: profile.firstName || '',
+            last_name: profile.lastName || '',
+            email: profile.email,
+            phone: profile.phone || '',
+            role: (profile.role?.toUpperCase() as 'CLIENT' | 'ADMIN') || 'CLIENT',
+          }))
+        );
       } catch (error) {
         console.error('Unexpected error fetching clients:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load clients",
+          variant: "destructive"
+        });
       } finally {
         setIsFetchingClients(false);
       }
@@ -77,30 +77,32 @@ const AdminDashboard = () => {
 
     const fetchProperties = async () => {
       if (!user) return;
-      
       try {
-        const { data, error } = await supabase
-          .from('properties')
-          .select('id, name, address, price, beds, baths, area');
-        
-        if (error) {
-          console.error('Error fetching properties:', error);
-          toast({
-            title: "Error",
-            description: "Failed to load properties",
-            variant: "destructive"
-          });
-        } else {
-          setProperties(data || []);
-        }
+        const { data } = await apiService.getAllProperties();
+        setProperties(
+          (data || []).map((property) => ({
+            id: property.id?.toString() || '',
+            name: property.name || '',
+            address: property.address || '',
+            price: property.currentValue || 0,
+            beds: (property as any).beds || 0,
+            baths: (property as any).baths || 0,
+            area: (property as any).area || 0,
+          }))
+        );
       } catch (error) {
         console.error('Unexpected error fetching properties:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load properties",
+          variant: "destructive"
+        });
       } finally {
         setIsFetchingProperties(false);
       }
     };
 
-    if (user && profile?.role === 'admin') {
+    if (user && profile?.role === 'ADMIN') {
       fetchClients();
       fetchProperties();
     }
@@ -149,7 +151,7 @@ const AdminDashboard = () => {
     );
   }
 
-  if (!user || !profile || profile.role !== 'admin') {
+  if (!user || !profile || profile.role !== 'ADMIN') {
     return null; // Will redirect in useEffect
   }
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import apiService from '@/services/api';
 
 export interface MortgageFormData {
   loanAmount: number;
@@ -118,116 +118,28 @@ export const useMortgageCalculator = () => {
       
       console.log("Submitting lead data:", data);
       
-      // First, check if the user already exists
-      const { data: existingUser } = await supabase
-        .from('profiles')
-        .select('id, gross_income, existing_loans')
-        .eq('email', data.email)
-        .maybeSingle();
+      // Submit basic lead information to Spring Boot backend
+      const response = await apiService.submitMortgageLead({
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        phone: data.phone,
+        loanAmount: data.mortgageDetails.loanAmount,
+        interestRate: data.mortgageDetails.interestRate,
+        loanTerm: data.mortgageDetails.loanTerm,
+        repaymentFrequency: data.mortgageDetails.repaymentFrequency,
+        loanType: data.mortgageDetails.loanType
+      });
       
-      // Estimate income based on loan amount (if not available)
-      // A common rule of thumb is that mortgage should be ~4-5x annual income
-      const estimatedIncome = data.mortgageDetails.loanAmount / 5;
-      
-      if (!existingUser) {
-        console.log("Creating new user account");
-        
-        // Create a new user with Supabase Auth
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: data.email,
-          password: generateRandomPassword(),
-          options: {
-            data: {
-              first_name: data.firstName,
-              last_name: data.lastName,
-              phone: data.phone,
-              gross_income: estimatedIncome,
-              purchase_timeframe: data.purchaseTimeframe,
-              loan_amount: data.mortgageDetails.loanAmount,
-              interest_rate: data.mortgageDetails.interestRate,
-              loan_term: data.mortgageDetails.loanTerm,
-              repayment_frequency: data.mortgageDetails.repaymentFrequency,
-              loan_type: data.mortgageDetails.loanType,
-              additional_repayments: data.mortgageDetails.additionalRepayments,
-              monthly_repayment: convertPaymentToMonthly(
-                data.mortgageDetails.results.repaymentAmount,
-                data.mortgageDetails.repaymentFrequency
-              )
-            }
-          }
-        });
-        
-        if (authError) {
-          console.error("Auth error:", authError);
-          throw authError;
-        }
-        
-        console.log("User created:", authData?.user?.id);
-      } else {
-        console.log("User already exists, updating their profile with the latest information");
-        
-        // Update the existing user's profile with mortgage information
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({
-            first_name: data.firstName,
-            last_name: data.lastName,
-            phone: data.phone,
-            purchase_timeframe: data.purchaseTimeframe,
-            loan_amount: data.mortgageDetails.loanAmount,
-            interest_rate: data.mortgageDetails.interestRate,
-            loan_term: data.mortgageDetails.loanTerm,
-            repayment_frequency: data.mortgageDetails.repaymentFrequency,
-            loan_type: data.mortgageDetails.loanType,
-            additional_repayments: data.mortgageDetails.additionalRepayments,
-            monthly_repayment: convertPaymentToMonthly(
-              data.mortgageDetails.results.repaymentAmount, 
-              data.mortgageDetails.repaymentFrequency
-            ),
-            // Only update income if not previously set
-            gross_income: existingUser.gross_income || estimatedIncome
-          })
-          .eq('id', existingUser.id);
-          
-        if (updateError) {
-          console.error("Error updating profile:", updateError);
-          throw updateError;
-        }
-      }
-      
-      // Then, call the edge function to send the email (if enabled)
-      try {
-        console.log("Calling edge function to send email");
-        const { error: emailError } = await supabase.functions.invoke("send-mortgage-report", {
-          body: {
-            firstName: data.firstName,
-            email: data.email,
-            mortgageDetails: data.mortgageDetails
-          }
-        });
-        
-        if (emailError) {
-          console.error("Email function error:", emailError);
-          // Don't throw here - just log the error and continue
-        }
-      } catch (emailErr) {
-        console.error("Failed to call edge function:", emailErr);
-        // This is a non-critical error, we can continue
-      }
+      console.log("Lead submitted to backend:", response.data);
       
       toast({
         title: "Lead Submitted",
         description: "Thank you for your submission. We'll be in touch soon."
       });
       
-      // Sign out the user if they were automatically signed in
-      const { data: session } = await supabase.auth.getSession();
-      if (session?.session?.user) {
-        await supabase.auth.signOut();
-      }
-      
       return { success: true };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error submitting lead:", error);
       
       toast({

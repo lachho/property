@@ -1,10 +1,10 @@
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import apiService from '@/services/api';
 
 const PortfolioManager = () => {
   const { user, profile, isLoading } = useAuth();
@@ -44,7 +44,7 @@ const PortfolioManager = () => {
       // If we have both user and profile
       if (profile) {
         console.log(`PortfolioManager: Routing user with role ${profile.role} to appropriate dashboard`);
-        if (profile.role === 'admin') {
+        if (profile.role === 'ADMIN') {
           navigate('/admin-dashboard');
         } else {
           navigate('/client-dashboard');
@@ -57,35 +57,60 @@ const PortfolioManager = () => {
         // Double-check if profile exists in the database
         const checkAndCreateProfile = async () => {
           try {
-            const { supabase } = await import('@/integrations/supabase/client');
             
             // Check if profile exists
-            const { data: existingProfile } = await supabase
-              .from('profiles')
-              .select('id')
-              .eq('id', user.id)
-              .maybeSingle();
+            const { data: existingProfile } = await apiService.getProfileById(user.id);
             
             if (!existingProfile) {
               console.log("PortfolioManager: Profile doesn't exist, creating one");
               
               // Create profile if it doesn't exist
-              const { error } = await supabase
-                .from('profiles')
-                .insert({
-                  id: user.id,
-                  email: user.email,
-                  role: 'client' // Default role
-                });
+              await apiService.updateProfile(user.id, {
+                id: Number(user.id) || 0,
+                email: user.email,
+                firstName: user.firstName || '',
+                lastName: user.lastName || '',
+                address: '',
+                phone: '',
+                occupation: '',
+                employer: '',
+                employmentLength: 0,
+                employmentType: '',
+                onProbation: false,
+                grossIncome: 0,
+                nonTaxableIncome: 0,
+                assessWithPartner: false,
+                partnerFirstName: '',
+                partnerLastName: '',
+                partnerDob: null,
+                partnerMobile: '',
+                partnerAddress: '',
+                partnerEmail: '',
+                partnerOccupation: '',
+                partnerEmployer: '',
+                partnerEmploymentLength: 0,
+                partnerEmploymentType: '',
+                partnerOnProbation: false,
+                partnerIncome: 0,
+                partnerNonTaxableIncome: 0,
+                isRenting: false,
+                rentPerWeek: 0,
+                monthlyLivingExpenses: 0,
+                residenceHistory: '',
+                dependants: 0,
+                dependantsAgeRanges: '',
+                retirementPassiveIncomeGoal: 0,
+                desiredRetirementAge: 0,
+                income: 0,
+                additionalIncome: 0,
+                additionalIncomeSource: '',
+                savings: 0,
+                assets: [],
+                liabilities: [],
+                role: 'CLIENT',
+              });
               
-              if (error) {
-                console.error("Failed to create profile:", error);
-                // Default to client dashboard if we can't create a profile
-                navigate('/client-dashboard');
-              } else {
-                // Redirect to client dashboard after creating profile
-                navigate('/client-dashboard');
-              }
+              navigate('/client-dashboard');
             } else {
               // Profile exists but wasn't loaded for some reason
               console.log("PortfolioManager: Profile exists but wasn't loaded, defaulting to client dashboard");

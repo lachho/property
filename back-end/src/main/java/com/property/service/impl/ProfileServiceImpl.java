@@ -1,7 +1,9 @@
 package com.property.service.impl;
 
+import com.property.dto.MortgageLeadDto;
 import com.property.dto.ProfileDetailsDto;
 import com.property.entity.Profile;
+import com.property.entity.UserRole;
 import com.property.repository.AssetRepository;
 import com.property.repository.LiabilityRepository;
 import com.property.repository.ProfileRepository;
@@ -9,10 +11,13 @@ import com.property.service.AssetService;
 import com.property.service.LiabilityService;
 import com.property.service.ProfileService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -32,6 +37,9 @@ public class ProfileServiceImpl implements ProfileService {
     
     @Autowired
     private LiabilityService liabilityService;
+    
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @Override
     public Profile getProfile(UUID id) {
@@ -141,5 +149,56 @@ public class ProfileServiceImpl implements ProfileService {
         // Existing fields
         existingProfile.setMaritalStatus(updatedProfile.getMaritalStatus());
         existingProfile.setExistingLoans(updatedProfile.getExistingLoans());
+    }
+
+    @Override
+    public Profile getProfileByEmail(String email) {
+        return profileRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Profile not found with email: " + email));
+    }
+
+    @Override
+    @Transactional
+    public Profile createProfileFromMortgageLead(MortgageLeadDto leadDto) {
+        // Check if a profile with this email already exists
+        Optional<Profile> existingProfile = profileRepository.findByEmail(leadDto.getEmail());
+        
+        if (existingProfile.isPresent()) {
+            // Update existing profile with lead information
+            Profile profile = existingProfile.get();
+            profile.setFirstName(leadDto.getFirstName());
+            profile.setLastName(leadDto.getLastName());
+            profile.setPhone(leadDto.getPhone());
+            
+            // Update mortgage-related fields if provided
+            if (leadDto.getLoanAmount() != null) {
+                profile.setExistingLoans(BigDecimal.valueOf(leadDto.getLoanAmount()));
+            }
+            
+            return profileRepository.save(profile);
+        } else {
+            // Create a new basic profile from lead information
+            Profile newProfile = Profile.builder()
+                    .firstName(leadDto.getFirstName())
+                    .lastName(leadDto.getLastName())
+                    .email(leadDto.getEmail())
+                    .phone(leadDto.getPhone())
+                    .role(UserRole.CLIENT)
+                    // Set a default temporary password (should be changed later)
+                    .password(passwordEncoder.encode(generateTemporaryPassword()))
+                    .build();
+            
+            // Set mortgage-related fields if provided
+            if (leadDto.getLoanAmount() != null) {
+                newProfile.setExistingLoans(BigDecimal.valueOf(leadDto.getLoanAmount()));
+            }
+            
+            return profileRepository.save(newProfile);
+        }
+    }
+    
+    private String generateTemporaryPassword() {
+        // Generate a random temporary password
+        return UUID.randomUUID().toString().substring(0, 12);
     }
 } 

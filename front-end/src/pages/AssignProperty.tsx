@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,23 +10,24 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
 import { Loader2, Home } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import apiService from '@/services/api';
 
 interface Client {
   id: string;
-  first_name: string | null;
-  last_name: string | null;
+  first_name: string;
+  last_name: string;
   email: string;
-  gross_income: number | null;
-  borrowing_capacity: number | null;
+  role: 'ADMIN' | 'CLIENT';
+  gross_income: number;
+  borrowing_capacity: number;
 }
 
 interface Property {
   id: string;
   name: string;
-  price: number;
   address: string;
-  image_url: string | null;
+  price: number;
+  image_url: string;
   beds: number;
   baths: number;
   area: number;
@@ -75,55 +75,65 @@ const AssignProperty = () => {
   
   // Redirect non-admin users
   useEffect(() => {
-    if (!isLoading && (!user || (profile && profile.role !== 'admin'))) {
+    if (!isLoading && (!user || (profile && profile.role !== 'ADMIN'))) {
       navigate('/auth');
     }
   }, [isLoading, user, profile, navigate]);
   
   // Fetch clients and properties
   useEffect(() => {
-    const fetchData = async () => {
-      if (!user || profile?.role !== 'admin') return;
-      
+    const fetchClients = async () => {
+      if (!user) return;
       try {
-        // Fetch clients
-        const { data: clientsData, error: clientsError } = await supabase
-          .from('profiles')
-          .select('id, first_name, last_name, email, gross_income')
-          .eq('role', 'client');
-        
-        if (clientsError) throw clientsError;
-        
-        // Calculate borrowing capacity for each client
-        const clientsWithCapacity = clientsData.map(client => ({
-          ...client,
-          borrowing_capacity: client.gross_income ? client.gross_income * 6 : 0
-        }));
-        
-        setClients(clientsWithCapacity || []);
-        
-        // Fetch properties
-        const { data: propertiesData, error: propertiesError } = await supabase
-          .from('properties')
-          .select('id, name, price, address, image_url, beds, baths, area');
-        
-        if (propertiesError) throw propertiesError;
-        
-        setProperties(propertiesData || []);
+        const { data } = await apiService.getAllClients();
+        setClients((data || []).map((profile) => ({
+          id: profile.id?.toString() || '',
+          first_name: profile.firstName || '',
+          last_name: profile.lastName || '',
+          email: profile.email,
+          role: (profile.role?.toUpperCase() as 'CLIENT' | 'ADMIN') || 'CLIENT',
+          gross_income: profile.grossIncome || 0,
+          borrowing_capacity: 0,
+        })));
       } catch (error) {
-        console.error('Error fetching data:', error);
         toast({
-          variant: "destructive",
           title: "Error",
-          description: "Failed to load clients and properties."
+          description: "Failed to load clients",
+          variant: "destructive"
         });
       } finally {
         setIsFetching(false);
       }
     };
-    
-    fetchData();
-  }, [user, profile, navigate]);
+    const fetchProperties = async () => {
+      if (!user) return;
+      try {
+        const { data } = await apiService.getAllProperties();
+        setProperties((data || []).map((property) => ({
+          id: property.id?.toString() || '',
+          name: property.name || '',
+          address: property.address || '',
+          price: property.currentValue || 0,
+          image_url: '',
+          beds: 0,
+          baths: 0,
+          area: 0,
+        })));
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to load properties",
+          variant: "destructive"
+        });
+      } finally {
+        setIsFetching(false);
+      }
+    };
+    if (user && profile?.role === 'ADMIN') {
+      fetchClients();
+      fetchProperties();
+    }
+  }, [user, profile]);
   
   // Update property details when selection changes
   useEffect(() => {
@@ -158,39 +168,19 @@ const AssignProperty = () => {
     setIsSubmitting(true);
     
     try {
-      // Check if this property is already saved for this client
-      const { data: existingSaved, error: checkError } = await supabase
-        .from('saved_properties')
-        .select('id')
-        .eq('user_id', selectedClient)
-        .eq('property_id', selectedProperty);
+      // TODO: Implement checkPropertyAssignment in apiService if needed
+      // For now, just proceed to assign
       
-      if (checkError) throw checkError;
+      // Save the property for the client
+      await apiService.assignPropertyToClient(selectedClient, selectedProperty);
       
-      if (existingSaved && existingSaved.length > 0) {
-        toast({
-          title: "Already Assigned",
-          description: "This property is already assigned to this client."
-        });
-      } else {
-        // Save the property for the client
-        const { error: saveError } = await supabase
-          .from('saved_properties')
-          .insert([{
-            user_id: selectedClient,
-            property_id: selectedProperty
-          }]);
-        
-        if (saveError) throw saveError;
-        
-        toast({
-          title: "Success!",
-          description: "Property has been assigned to the client successfully."
-        });
-        
-        // Navigate to client view
-        navigate(`/admin/client/${selectedClient}`);
-      }
+      toast({
+        title: "Success!",
+        description: "Property has been assigned to the client successfully."
+      });
+      
+      // Navigate to client view
+      navigate(`/admin/client/${selectedClient}`);
     } catch (error: any) {
       console.error('Error assigning property:', error);
       toast({

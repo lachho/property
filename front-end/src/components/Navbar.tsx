@@ -46,7 +46,7 @@ const Navbar = () => {
           {user ? (
             <div className="flex items-center gap-4">
               <span className="text-sm text-gray-600">
-                {profile?.role === 'admin' ? 'Admin' : 'Client'}: {user.email}
+                {profile?.role === 'ADMIN' ? 'Admin' : 'Client'}: {user.email}
               </span>
               <Button 
                 variant="outline" 
@@ -105,7 +105,7 @@ const Navbar = () => {
               <>
                 <div className="p-2">
                   <p className="text-sm text-gray-600">
-                    {profile?.role === 'admin' ? 'Admin' : 'Client'}: {user.email}
+                    {profile?.role === 'ADMIN' ? 'Admin' : 'Client'}: {user.email}
                   </p>
                 </div>
                 <Button 

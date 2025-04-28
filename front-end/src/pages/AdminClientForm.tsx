@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
+import apiService from '@/services/api';
 
 const AdminClientForm = () => {
   const { user, profile, isLoading } = useAuth();
@@ -18,10 +19,34 @@ const AdminClientForm = () => {
   useEffect(() => {
     if (!isLoading && !user) {
       navigate('/auth');
-    } else if (!isLoading && user && profile && profile.role !== 'admin') {
+    } else if (!isLoading && user && profile && profile.role !== 'ADMIN') {
       navigate('/portfolio-manager');
     }
   }, [isLoading, user, profile, navigate]);
+
+  useEffect(() => {
+    if (clientId) {
+      setIsFormLoading(true);
+      apiService.getProfileById(clientId)
+        .then(({ data }) => {
+          if (data) {
+            // setValue('firstName', data.firstName || '');
+            // setValue('lastName', data.lastName || '');
+            // setValue('email', data.email || '');
+            // setValue('phone', data.phone || '');
+            // If you need to set form values, do it in ClientDetailsForm
+          }
+        })
+        .catch(() => {
+          toast({
+            title: 'Error',
+            description: 'Failed to load client profile',
+            variant: 'destructive',
+          });
+        })
+        .finally(() => setIsFormLoading(false));
+    }
+  }, [clientId]);
 
   const handleFormSaved = () => {
     toast({
@@ -29,6 +54,29 @@ const AdminClientForm = () => {
       description: "Client details saved successfully",
     });
     navigate('/admin-dashboard');
+  };
+
+  const onSubmit = async (data: any) => {
+    setIsFormLoading(true);
+    try {
+      await apiService.updateProfile(clientId, {
+        ...data,
+        id: clientId,
+      });
+      toast({
+        title: 'Success',
+        description: 'Client profile updated successfully',
+      });
+      navigate('/admin-dashboard');
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update client profile',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsFormLoading(false);
+    }
   };
 
   if (isLoading || isFormLoading) {
@@ -46,7 +94,7 @@ const AdminClientForm = () => {
     );
   }
 
-  if (!user || !profile || profile.role !== 'admin') {
+  if (!user || !profile || profile.role !== 'ADMIN') {
     return null; // Will redirect in useEffect
   }
 
