@@ -38,8 +38,14 @@ const AdminDashboard = () => {
   const [isFetchingClients, setIsFetchingClients] = useState(true);
   const [isFetchingProperties, setIsFetchingProperties] = useState(true);
 
+  console.log('AdminDashboard: isLoading', isLoading);
+  console.log('AdminDashboard: user', user);
+  console.log('AdminDashboard: profile', profile);
+  console.log('AdminDashboard: isFetchingClients', isFetchingClients);
+  console.log('AdminDashboard: isFetchingProperties', isFetchingProperties);
 
   useEffect(() => {
+    console.log('useEffect: user', user, 'profile', profile);
     if (!isLoading && !user) {
       navigate('/auth');
     } else if (!isLoading && user && profile && profile.role !== 'ADMIN') {
@@ -51,6 +57,7 @@ const AdminDashboard = () => {
   useEffect(() => {
     const fetchClients = async () => {
       if (!user) return;
+      console.log('Fetching clients...');
       try {
         const { data } = await apiService.getAllClients();
         setClients(
@@ -71,12 +78,14 @@ const AdminDashboard = () => {
           variant: "destructive"
         });
       } finally {
+        console.log('Finished fetching clients');
         setIsFetchingClients(false);
       }
     };
 
     const fetchProperties = async () => {
       if (!user) return;
+      console.log('Fetching properties...');
       try {
         const { data } = await apiService.getAllProperties();
         setProperties(
@@ -98,6 +107,7 @@ const AdminDashboard = () => {
           variant: "destructive"
         });
       } finally {
+        console.log('Finished fetching properties');
         setIsFetchingProperties(false);
       }
     };

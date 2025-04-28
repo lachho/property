@@ -1,6 +1,7 @@
 package com.property.controller;
 
 import com.property.dto.ProfileDetailsDto;
+import com.property.dto.ProfileDto;
 import com.property.entity.Profile;
 import com.property.service.ProfileService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,13 +23,13 @@ public class ProfileController {
 
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.id")
-    public ResponseEntity<Profile> getProfile(@PathVariable UUID id) {
+    public ResponseEntity<ProfileDto> getProfile(@PathVariable UUID id) {
         return ResponseEntity.ok(profileService.getProfile(id));
     }
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<Profile>> getAllProfiles() {
+    public ResponseEntity<List<ProfileDto>> getAllProfiles() {
         return ResponseEntity.ok(profileService.getAllProfiles());
     }
 

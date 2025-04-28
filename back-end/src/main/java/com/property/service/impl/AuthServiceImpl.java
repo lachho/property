@@ -40,6 +40,9 @@ public class AuthServiceImpl implements AuthService {
                 .accessToken(jwtToken)
                 .email(profile.getEmail())
                 .role(profile.getRole().name())
+                .firstName(profile.getFirstName())
+                .lastName(profile.getLastName())
+                .id(profile.getId().toString())
                 .build();
     }
 
@@ -58,6 +61,9 @@ public class AuthServiceImpl implements AuthService {
                 .accessToken(jwtToken)
                 .email(profile.getEmail())
                 .role(profile.getRole().name())
+                .firstName(profile.getFirstName())
+                .lastName(profile.getLastName())
+                .id(profile.getId().toString())
                 .build();
     }
 } 

@@ -2,6 +2,7 @@ package com.property.service.impl;
 
 import com.property.dto.MortgageLeadDto;
 import com.property.dto.ProfileDetailsDto;
+import com.property.dto.ProfileDto;
 import com.property.entity.Profile;
 import com.property.entity.UserRole;
 import com.property.repository.AssetRepository;
@@ -41,23 +42,27 @@ public class ProfileServiceImpl implements ProfileService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    @Override
-    public Profile getProfile(UUID id) {
+    private Profile getProfileEntity(UUID id) {
         return profileRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Profile not found with id: " + id));
     }
 
     @Override
-    public List<Profile> getAllProfiles() {
-        return profileRepository.findAll();
+    public ProfileDto getProfile(UUID id) {
+        Profile profile = getProfileEntity(id);
+        return toDto(profile);
+    }
+
+    @Override
+    public List<ProfileDto> getAllProfiles() {
+        return profileRepository.findAll().stream().map(this::toDto).toList();
     }
 
     @Override
     public Profile updateProfile(UUID id, Profile profile) {
-        Profile existingProfile = getProfile(id);
+        Profile existingProfile = getProfileEntity(id);
         // Update fields that are allowed to be modified
         updateProfileFields(existingProfile, profile);
-        
         return profileRepository.save(existingProfile);
     }
 
@@ -68,8 +73,7 @@ public class ProfileServiceImpl implements ProfileService {
     
     @Override
     public ProfileDetailsDto getProfileDetails(UUID id) {
-        Profile profile = getProfile(id);
-        
+        Profile profile = getProfileEntity(id);
         return ProfileDetailsDto.builder()
                 .profile(profile)
                 .assets(assetRepository.findByProfileId(id))
@@ -81,7 +85,7 @@ public class ProfileServiceImpl implements ProfileService {
     @Transactional
     public ProfileDetailsDto updateProfileDetails(UUID id, ProfileDetailsDto profileDetails) {
         // Update profile
-        Profile existingProfile = getProfile(id);
+        Profile existingProfile = getProfileEntity(id);
         updateProfileFields(existingProfile, profileDetails.getProfile());
         profileRepository.save(existingProfile);
         
@@ -200,5 +204,27 @@ public class ProfileServiceImpl implements ProfileService {
     private String generateTemporaryPassword() {
         // Generate a random temporary password
         return UUID.randomUUID().toString().substring(0, 12);
+    }
+
+    private ProfileDto toDto(Profile profile) {
+        if (profile == null) return null;
+        return ProfileDto.builder()
+                .id(profile.getId())
+                .firstName(profile.getFirstName())
+                .lastName(profile.getLastName())
+                .email(profile.getEmail())
+                .phone(profile.getPhone())
+                .role(profile.getRole() != null ? profile.getRole().name() : null)
+                .address(profile.getAddress())
+                .dateOfBirth(profile.getDateOfBirth() != null ? profile.getDateOfBirth().toString() : null)
+                .occupation(profile.getOccupation())
+                .employer(profile.getEmployer())
+                .employmentLength(profile.getEmploymentLength())
+                .employmentType(profile.getEmploymentType())
+                .onProbation(profile.getOnProbation())
+                .maritalStatus(profile.getMaritalStatus())
+                .dependants(profile.getDependants())
+                // Add other fields as needed
+                .build();
     }
 } 

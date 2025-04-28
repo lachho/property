@@ -92,7 +92,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         try {
           // Decode the token to get user information
           const decodedToken = parseJwt(token);
-          const userId = decodedToken.sub;
+          // Use id from token if available, otherwise fallback to sub
+          const userId = decodedToken.id || decodedToken.sub;
           const userEmail = decodedToken.email;
           const userRole = decodedToken.role as 'ADMIN' | 'CLIENT';
           
@@ -191,32 +192,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.setItem('refreshToken', data.refreshToken);
       }
       
-      try {
-        // Decode the token to get user ID
-        const decodedToken = parseJwt(data.accessToken);
-        const userId = decodedToken.sub;
-        
-        // Create basic user info
-        setUser({
-          id: userId,
-          email: data.email,
-          role: data.role.toUpperCase() as 'ADMIN' | 'CLIENT',
-          firstName: data.firstName,
-          lastName: data.lastName
-        });
-        
-        // Fetch complete user profile
-        await fetchUserProfile(userId);
-      } catch (decodeError) {
-        console.error("Error decoding token:", decodeError);
-        // Create basic user from response data if token decode fails
-        setUser({
-          email: data.email,
-          role: data.role.toUpperCase() as 'ADMIN' | 'CLIENT',
-          firstName: data.firstName,
-          lastName: data.lastName
-        });
-      }
+      // Use the id from the backend response if available
+      const userId = data.id || (parseJwt(data.accessToken)?.sub);
+      setUser({
+        id: userId,
+        email: data.email,
+        role: data.role.toUpperCase() as 'ADMIN' | 'CLIENT',
+        firstName: data.firstName,
+        lastName: data.lastName
+      });
+      
+      await fetchUserProfile(userId);
       
       console.log("Sign in successful");
     } catch (error: any) {
