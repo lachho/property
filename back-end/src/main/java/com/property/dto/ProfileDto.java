@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Data
@@ -27,5 +28,36 @@ public class ProfileDto {
     private Boolean onProbation;
     private String maritalStatus;
     private Integer dependants;
-    // Add other primitive/simple fields as needed
+    private BigDecimal grossIncome;
+    private BigDecimal nonTaxableIncome;
+    
+    // Partner fields
+    private Boolean assessWithPartner;
+    private String partnerFirstName;
+    private String partnerLastName;
+    private String partnerDob;
+    private String partnerMobile;
+    private String partnerAddress;
+    private String partnerEmail;
+    private String partnerOccupation;
+    private String partnerEmployer;
+    private Integer partnerEmploymentLength;
+    private String partnerEmploymentType;
+    private Boolean partnerOnProbation;
+    private BigDecimal partnerIncome;
+    private BigDecimal partnerNonTaxableIncome;
+    
+    // Expense fields
+    private Boolean isRenting;
+    private BigDecimal rentPerWeek;
+    private BigDecimal monthlyLivingExpenses;
+    private String residenceHistory;
+    private String dependantsAgeRanges;
+    
+    // Retirement fields
+    private BigDecimal retirementPassiveIncomeGoal;
+    private Integer desiredRetirementAge;
+    
+    // Other fields
+    private BigDecimal existingLoans;
 } 

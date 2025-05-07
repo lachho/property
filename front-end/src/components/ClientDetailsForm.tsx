@@ -15,36 +15,24 @@ import { DatePicker } from '@/components/ui/calendar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Trash2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import apiService, { Asset, Liability, Profile, ProfileDetailsDto } from '@/services/api';
+import apiService, { Asset, Liability, Profile, ProfileDetailsDto, Portfolio } from '@/services/api';
+import AssetListSection from './AssetListSection';
+import LiabilityListSection from './LiabilityListSection';
 
-// Type definitions to match backend entities
-type AssetType = {
-  id?: number;
-  assetType: string;
-  currentValue: number;
-  originalPrice: number;
-  yearPurchased: number;
-  ownershipPercentage: number;
-  incomeAmount: number;
-  incomeFrequency: string;
-  description?: string;
-  profile?: { id: string } | null;
+type AddressFields = {
+  street: string;
+  suburb: string;
+  state: string;
+  postcode: string;
+  country: string;
 };
 
-type LiabilityType = {
-  id?: number;
-  liabilityType: string;
-  isPrimaryResidence?: boolean;
-  loanBalance: number;
-  limitAmount?: number;
-  lenderType: string;
-  interestRate: number;
-  termType: string;
-  repaymentAmount: number;
-  repaymentFrequency: string;
-  loanType: string;
-  description?: string;
-  profile?: { id: string } | null;
+type PartnerAddressFields = {
+  partnerStreet: string;
+  partnerSuburb: string;
+  partnerState: string;
+  partnerPostcode: string;
+  partnerCountry: string;
 };
 
 type ClientFormData = {
@@ -53,8 +41,13 @@ type ClientFormData = {
   lastName: string;
   dateOfBirth: Date | null;
   phone: string;
-  address: string;
   email: string;
+  // Split address
+  street: string;
+  suburb: string;
+  state: string;
+  postcode: string;
+  country: string;
   
   // Occupation Details
   occupation: string;
@@ -71,8 +64,13 @@ type ClientFormData = {
   partnerLastName: string;
   partnerDob: Date | null;
   partnerMobile: string;
-  partnerAddress: string;
   partnerEmail: string;
+  // Split partner address
+  partnerStreet: string;
+  partnerSuburb: string;
+  partnerState: string;
+  partnerPostcode: string;
+  partnerCountry: string;
   partnerOccupation: string;
   partnerEmployer: string;
   partnerEmploymentLength: number;
@@ -93,9 +91,14 @@ type ClientFormData = {
   retirementPassiveIncomeGoal: number;
   desiredRetirementAge: number;
   
+  // Other
+  existingLoans: number;
+  maritalStatus: string;
+  
   // Repeatable Sections
-  assets: AssetType[];
-  liabilities: LiabilityType[];
+  assets: Asset[];
+  liabilities: Liability[];
+  portfolios: Portfolio[];
 };
 
 interface ClientDetailsFormProps {
@@ -103,13 +106,30 @@ interface ClientDetailsFormProps {
   onSaved?: () => void;
 }
 
-const EMPLOYMENT_TYPES = ['Full-time', 'Part-time', 'Casual', 'Self-employed', 'Contract', 'Unemployed'];
-const ASSET_TYPES = ['Primary Home', 'Investment Property', 'Business', 'Shares', 'Super', 'Savings', 'Other'];
-const LIABILITY_TYPES = ['Mortgage', 'Credit Card', 'Vehicle Loan', 'HECS', 'Childcare', 'School', 'Insurance', 'Private Health', 'Other Loans', 'Share Margin Lending'];
-const INCOME_FREQUENCIES = ['Weekly', 'Fortnightly', 'Monthly', 'Quarterly', 'Annual'];
-const REPAYMENT_FREQUENCIES = ['Weekly', 'Fortnightly', 'Monthly'];
-const TERM_TYPES = ['Fixed', 'Variable'];
-const LOAN_TYPES = ['Interest Only', 'Principal and Interest'];
+export const EMPLOYMENT_TYPES = ['Full-time', 'Part-time', 'Casual', 'Self-employed', 'Contract', 'Unemployed'];
+export const ASSET_TYPES = ['Primary Home', 'Investment Property', 'Business', 'Shares', 'Super', 'Savings', 'Other'];
+export const LIABILITY_TYPES = ['Mortgage', 'Credit Card', 'Vehicle Loan', 'HECS', 'Childcare', 'School', 'Insurance', 'Private Health', 'Other Loans', 'Share Margin Lending'];
+export const INCOME_FREQUENCIES = ['Weekly', 'Fortnightly', 'Monthly', 'Quarterly', 'Annual'];
+export const REPAYMENT_FREQUENCIES = ['Weekly', 'Fortnightly', 'Monthly'];
+export const TERM_TYPES = ['Fixed', 'Variable'];
+export const LOAN_TYPES = ['Interest Only', 'Principal and Interest'];
+
+// Helper functions for address parsing and joining
+function parseAddress(address: string | null | undefined = ''): AddressFields {
+  // Handle null or undefined address
+  if (!address) {
+    return { street: '', suburb: '', state: '', postcode: '', country: '' };
+  }
+  
+  // Very simple split: Street, Suburb, State, Postcode, Country
+  // e.g. "123 Main St, Sydney, NSW, 2000, Australia"
+  const [street = '', suburb = '', state = '', postcode = '', country = ''] = address.split(',').map(s => s.trim());
+  return { street, suburb, state, postcode, country };
+}
+
+function joinAddress({ street, suburb, state, postcode, country }: AddressFields): string {
+  return [street, suburb, state, postcode, country].filter(Boolean).join(', ');
+}
 
 const ClientDetailsForm: React.FC<ClientDetailsFormProps> = ({ clientId, onSaved }) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -122,8 +142,12 @@ const ClientDetailsForm: React.FC<ClientDetailsFormProps> = ({ clientId, onSaved
       lastName: '',
       dateOfBirth: null,
       phone: '',
-      address: '',
       email: '',
+      street: '',
+      suburb: '',
+      state: '',
+      postcode: '',
+      country: '',
       
       // Occupation Details
       occupation: '',
@@ -140,8 +164,12 @@ const ClientDetailsForm: React.FC<ClientDetailsFormProps> = ({ clientId, onSaved
       partnerLastName: '',
       partnerDob: null,
       partnerMobile: '',
-      partnerAddress: '',
       partnerEmail: '',
+      partnerStreet: '',
+      partnerSuburb: '',
+      partnerState: '',
+      partnerPostcode: '',
+      partnerCountry: '',
       partnerOccupation: '',
       partnerEmployer: '',
       partnerEmploymentLength: 0,
@@ -162,9 +190,14 @@ const ClientDetailsForm: React.FC<ClientDetailsFormProps> = ({ clientId, onSaved
       retirementPassiveIncomeGoal: 0,
       desiredRetirementAge: 65,
       
+      // Other
+      existingLoans: 0,
+      maritalStatus: '',
+      
       // Repeatable Sections
       assets: [],
-      liabilities: []
+      liabilities: [],
+      portfolios: []
     }
   });
   
@@ -185,23 +218,56 @@ const ClientDetailsForm: React.FC<ClientDetailsFormProps> = ({ clientId, onSaved
   }, [clientId]);
   
   const fetchClientData = async () => {
-    if (!clientId) return;
-    
+    if (!clientId) {
+      console.error('No clientId provided to fetchClientData');
+      toast({
+        title: "Error",
+        description: "No client ID provided.",
+        variant: "destructive"
+      });
+      return;
+    }
     setIsLoading(true);
     try {
       // Fetch profile details including assets and liabilities
       const response = await apiService.getProfileDetails(clientId);
       const profileDetails = response.data;
+      console.log('Fetched profileDetails for clientId', clientId, profileDetails);
       
-      if (profileDetails) {
-        const profile = profileDetails.profile;
-        
-        // Format dates from strings to Date objects
-        const dateOfBirth = profile.dateOfBirth ? new Date(profile.dateOfBirth) : null;
-        const partnerDob = profile.partnerDob ? new Date(profile.partnerDob) : null;
-        
-        // Prepare assets and liabilities to match form structure
-        const formattedAssets = profileDetails.assets.map((asset: AssetType) => ({
+      // Add validation for profile data
+      if (!profileDetails) {
+        throw new Error('No profile details received from API');
+      }
+      
+      if (!profileDetails.profile) {
+        throw new Error('Profile data is missing from API response');
+      }
+      
+      const profile = profileDetails.profile;
+      console.log('Profile data:', profile);
+      
+      // Log address data before parsing
+      console.log('Raw address data:', {
+        address: profile.address,
+        partnerAddress: profile.partnerAddress
+      });
+      
+      // Format dates from strings to Date objects
+      const dateOfBirth = profile.dateOfBirth ? new Date(profile.dateOfBirth) : null;
+      const partnerDob = profile.partnerDob ? new Date(profile.partnerDob) : null;
+      
+      // Parse addresses
+      const { street, suburb, state, postcode, country } = parseAddress(profile.address);
+      const { street: partnerStreet, suburb: partnerSuburb, state: partnerState, postcode: partnerPostcode, country: partnerCountry } = parseAddress(profile.partnerAddress);
+      
+      // Log parsed data
+      console.log('Parsed address data:', { street, suburb, state, postcode, country });
+      console.log('Parsed partner address data:', { partnerStreet, partnerSuburb, partnerState, partnerPostcode, partnerCountry });
+      
+      // Prepare assets and liabilities to match form structure
+      const formattedAssets = (profileDetails.assets || []).map((asset: Asset) => {
+        console.log('Processing asset:', asset);
+        return {
           ...asset,
           // Ensure numeric fields are numbers
           currentValue: Number(asset.currentValue),
@@ -209,74 +275,99 @@ const ClientDetailsForm: React.FC<ClientDetailsFormProps> = ({ clientId, onSaved
           yearPurchased: Number(asset.yearPurchased),
           ownershipPercentage: Number(asset.ownershipPercentage),
           incomeAmount: Number(asset.incomeAmount)
-        }));
-        
-        const formattedLiabilities = profileDetails.liabilities.map((liability: LiabilityType) => ({
+        };
+      });
+      
+      const formattedLiabilities = (profileDetails.liabilities || []).map((liability: Liability) => {
+        console.log('Processing liability:', liability);
+        return {
           ...liability,
           // Ensure numeric fields are numbers
           loanBalance: Number(liability.loanBalance),
           limitAmount: liability.limitAmount ? Number(liability.limitAmount) : 0,
           interestRate: Number(liability.interestRate),
           repaymentAmount: Number(liability.repaymentAmount)
-        }));
-        
-        form.reset({
-          // Personal Details
-          firstName: profile.firstName || '',
-          lastName: profile.lastName || '',
-          dateOfBirth: dateOfBirth,
-          phone: profile.phone || '',
-          address: profile.address || '',
-          email: profile.email || '',
-          
-          // Occupation Details
-          occupation: profile.occupation || '',
-          employer: profile.employer || '',
-          employmentLength: profile.employmentLength || 0,
-          employmentType: profile.employmentType || '',
-          onProbation: profile.onProbation || false,
-          grossIncome: profile.grossIncome || 0,
-          nonTaxableIncome: profile.nonTaxableIncome || 0,
-          
-          // Partner Assessment
-          assessWithPartner: profile.assessWithPartner || false,
-          partnerFirstName: profile.partnerFirstName || '',
-          partnerLastName: profile.partnerLastName || '',
-          partnerDob: partnerDob,
-          partnerMobile: profile.partnerMobile || '',
-          partnerAddress: profile.partnerAddress || '',
-          partnerEmail: profile.partnerEmail || '',
-          partnerOccupation: profile.partnerOccupation || '',
-          partnerEmployer: profile.partnerEmployer || '',
-          partnerEmploymentLength: profile.partnerEmploymentLength || 0,
-          partnerEmploymentType: profile.partnerEmploymentType || '',
-          partnerOnProbation: profile.partnerOnProbation || false,
-          partnerIncome: profile.partnerIncome || 0,
-          partnerNonTaxableIncome: profile.partnerNonTaxableIncome || 0,
-          
-          // Expense Details
-          isRenting: profile.isRenting || false,
-          rentPerWeek: profile.rentPerWeek || 0,
-          monthlyLivingExpenses: profile.monthlyLivingExpenses || 0,
-          residenceHistory: profile.residenceHistory || '',
-          dependants: profile.dependants || 0,
-          dependantsAgeRanges: profile.dependantsAgeRanges || '',
-          
-          // Retirement Details
-          retirementPassiveIncomeGoal: profile.retirementPassiveIncomeGoal || 0,
-          desiredRetirementAge: profile.desiredRetirementAge || 65,
-          
-          // Repeatable Sections
-          assets: formattedAssets || [],
-          liabilities: formattedLiabilities || []
-        });
-      }
+        };
+      });
       
+      form.reset({
+        // Personal Details
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        dateOfBirth,
+        phone: profile.phone,
+        email: profile.email,
+        street,
+        suburb,
+        state,
+        postcode,
+        country,
+        
+        // Occupation Details
+        occupation: profile.occupation,
+        employer: profile.employer,
+        employmentLength: profile.employmentLength,
+        employmentType: profile.employmentType,
+        onProbation: profile.onProbation,
+        grossIncome: profile.grossIncome,
+        nonTaxableIncome: profile.nonTaxableIncome,
+        
+        // Partner Assessment
+        assessWithPartner: profile.assessWithPartner,
+        partnerFirstName: profile.partnerFirstName,
+        partnerLastName: profile.partnerLastName,
+        partnerDob,
+        partnerMobile: profile.partnerMobile,
+        partnerEmail: profile.partnerEmail,
+        partnerStreet,
+        partnerSuburb,
+        partnerState,
+        partnerPostcode,
+        partnerCountry,
+        partnerOccupation: profile.partnerOccupation,
+        partnerEmployer: profile.partnerEmployer,
+        partnerEmploymentLength: profile.partnerEmploymentLength,
+        partnerEmploymentType: profile.partnerEmploymentType,
+        partnerOnProbation: profile.partnerOnProbation,
+        partnerIncome: profile.partnerIncome,
+        partnerNonTaxableIncome: profile.partnerNonTaxableIncome,
+        
+        // Expense Details
+        isRenting: profile.isRenting,
+        rentPerWeek: profile.rentPerWeek,
+        monthlyLivingExpenses: profile.monthlyLivingExpenses,
+        residenceHistory: profile.residenceHistory,
+        dependants: profile.dependants,
+        dependantsAgeRanges: profile.dependantsAgeRanges,
+        
+        // Retirement Details
+        retirementPassiveIncomeGoal: profile.retirementPassiveIncomeGoal,
+        desiredRetirementAge: profile.desiredRetirementAge,
+        
+        // Other
+        existingLoans: profile.existingLoans,
+        maritalStatus: profile.maritalStatus,
+        
+        // Repeatable Sections
+        assets: formattedAssets,
+        liabilities: formattedLiabilities,
+        portfolios: profileDetails.portfolios || []
+      });
     } catch (error) {
       console.error('Error fetching client data:', error);
+      // Log more detailed error information
+      if (error instanceof Error) {
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+      }
+      if (error && typeof error === 'object' && 'response' in error) {
+        console.error('API Error response:', error.response?.data);
+        console.error('API Error status:', error.response?.status);
+      }
       toast({
         title: "Error",
-        description: "Failed to load client data",
+        description: "Failed to load client data. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -285,42 +376,54 @@ const ClientDetailsForm: React.FC<ClientDetailsFormProps> = ({ clientId, onSaved
   };
   
   const onSubmit = async (data: ClientFormData) => {
+    if (!clientId) {
+      console.error('No clientId provided to onSubmit');
+      toast({
+        title: "Error",
+        description: "No client ID provided.",
+        variant: "destructive"
+      });
+      return;
+    }
     setIsSaving(true);
     try {
-      // Prepare asset data - ensure numeric values are actually numbers
+      // Format asset and liability data
       const formattedAssets = data.assets.map(asset => ({
         ...asset,
+        // Ensure numeric values are numbers
         currentValue: Number(asset.currentValue),
         originalPrice: Number(asset.originalPrice),
         yearPurchased: Number(asset.yearPurchased),
         ownershipPercentage: Number(asset.ownershipPercentage),
-        incomeAmount: Number(asset.incomeAmount),
-        // Remove the profile reference - it will be assigned by the backend
-        profile: undefined
+        incomeAmount: Number(asset.incomeAmount)
       }));
       
-      // Prepare liability data - ensure numeric values are actually numbers
       const formattedLiabilities = data.liabilities.map(liability => ({
         ...liability,
+        // Ensure numeric values are numbers
         loanBalance: Number(liability.loanBalance),
-        limitAmount: liability.limitAmount ? Number(liability.limitAmount) : undefined,
+        limitAmount: liability.limitAmount ? Number(liability.limitAmount) : 0,
         interestRate: Number(liability.interestRate),
-        repaymentAmount: Number(liability.repaymentAmount),
-        // Remove the profile reference - it will be assigned by the backend
-        profile: undefined
+        repaymentAmount: Number(liability.repaymentAmount)
       }));
       
+      // Construct the profile data
       // Format the data for the API
-      const formattedData = {
+      const formattedData: ProfileDetailsDto = {
         profile: {
           // Personal Details
           firstName: data.firstName,
           lastName: data.lastName,
           dateOfBirth: data.dateOfBirth,
           phone: data.phone,
-          address: data.address,
+          address: joinAddress({
+            street: data.street,
+            suburb: data.suburb,
+            state: data.state,
+            postcode: data.postcode,
+            country: data.country
+          }),
           email: data.email,
-          
           // Occupation Details
           occupation: data.occupation,
           employer: data.employer,
@@ -329,14 +432,19 @@ const ClientDetailsForm: React.FC<ClientDetailsFormProps> = ({ clientId, onSaved
           onProbation: data.onProbation,
           grossIncome: Number(data.grossIncome),
           nonTaxableIncome: Number(data.nonTaxableIncome),
-          
           // Partner Assessment
           assessWithPartner: data.assessWithPartner,
           partnerFirstName: data.partnerFirstName,
           partnerLastName: data.partnerLastName,
           partnerDob: data.partnerDob,
           partnerMobile: data.partnerMobile,
-          partnerAddress: data.partnerAddress,
+          partnerAddress: joinAddress({
+            street: data.partnerStreet,
+            suburb: data.partnerSuburb,
+            state: data.partnerState,
+            postcode: data.partnerPostcode,
+            country: data.partnerCountry
+          }),
           partnerEmail: data.partnerEmail,
           partnerOccupation: data.partnerOccupation,
           partnerEmployer: data.partnerEmployer,
@@ -345,7 +453,6 @@ const ClientDetailsForm: React.FC<ClientDetailsFormProps> = ({ clientId, onSaved
           partnerOnProbation: data.partnerOnProbation,
           partnerIncome: Number(data.partnerIncome),
           partnerNonTaxableIncome: Number(data.partnerNonTaxableIncome),
-          
           // Expense Details
           isRenting: data.isRenting,
           rentPerWeek: Number(data.rentPerWeek),
@@ -353,21 +460,20 @@ const ClientDetailsForm: React.FC<ClientDetailsFormProps> = ({ clientId, onSaved
           residenceHistory: data.residenceHistory,
           dependants: Number(data.dependants),
           dependantsAgeRanges: data.dependantsAgeRanges,
-          
           // Retirement Details
           retirementPassiveIncomeGoal: Number(data.retirementPassiveIncomeGoal),
           desiredRetirementAge: Number(data.desiredRetirementAge),
-          
-          // Required fields from Profile interface
-          income: Number(data.grossIncome), // Use grossIncome as income
-          additionalIncome: Number(data.nonTaxableIncome), // Use nonTaxableIncome as additionalIncome
-          additionalIncomeSource: "Other", // Default value
-          savings: 0, // Default value, add UI field if needed
-          assets: [], // Will be populated by the backend
-          liabilities: [] // Will be populated by the backend
+          // Other
+          existingLoans: Number(data.existingLoans),
+          maritalStatus: data.maritalStatus,
+          // Related entities
+          assets: [],
+          liabilities: [],
+          portfolios: []
         },
         assets: formattedAssets,
-        liabilities: formattedLiabilities
+        liabilities: formattedLiabilities,
+        portfolios: data.portfolios || []
       };
       
       if (clientId) {
@@ -434,7 +540,7 @@ const ClientDetailsForm: React.FC<ClientDetailsFormProps> = ({ clientId, onSaved
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <Tabs defaultValue="personal" className="w-full">
-          <TabsList className="grid grid-cols-6 mb-6">
+          <TabsList className="grid grid-cols-7 mb-6">
             <TabsTrigger value="personal">Personal</TabsTrigger>
             <TabsTrigger value="occupation">Occupation</TabsTrigger>
             <TabsTrigger value="partner">Partner</TabsTrigger>
@@ -526,12 +632,64 @@ const ClientDetailsForm: React.FC<ClientDetailsFormProps> = ({ clientId, onSaved
                 
                 <FormField
                   control={form.control}
-                  name="address"
+                  name="street"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Address</FormLabel>
+                      <FormLabel>Street</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="Full address" {...field} />
+                        <Input placeholder="Street" {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="suburb"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Suburb</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Suburb" {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="state"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>State</FormLabel>
+                      <FormControl>
+                        <Input placeholder="State" {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="postcode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Postcode</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Postcode" {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="country"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Country</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Country" {...field} />
                       </FormControl>
                     </FormItem>
                   )}
@@ -657,7 +815,7 @@ const ClientDetailsForm: React.FC<ClientDetailsFormProps> = ({ clientId, onSaved
                             type="number" 
                             placeholder="Annual gross income" 
                             min={0} 
-                            {...field} 
+                            {...field}
                             onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
                           />
                         </FormControl>
@@ -674,9 +832,9 @@ const ClientDetailsForm: React.FC<ClientDetailsFormProps> = ({ clientId, onSaved
                         <FormControl>
                           <Input 
                             type="number" 
-                            placeholder="Annual non-taxable income" 
+                            placeholder="Any annual non-taxable income" 
                             min={0} 
-                            {...field} 
+                            {...field}
                             onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
                           />
                         </FormControl>
@@ -794,12 +952,64 @@ const ClientDetailsForm: React.FC<ClientDetailsFormProps> = ({ clientId, onSaved
                     
                     <FormField
                       control={form.control}
-                      name="partnerAddress"
+                      name="partnerStreet"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Partner Address</FormLabel>
+                          <FormLabel>Partner Street</FormLabel>
                           <FormControl>
-                            <Textarea placeholder="Full address" {...field} />
+                            <Input placeholder="Street" {...field} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="partnerSuburb"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Partner Suburb</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Suburb" {...field} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="partnerState"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Partner State</FormLabel>
+                          <FormControl>
+                            <Input placeholder="State" {...field} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="partnerPostcode"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Partner Postcode</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Postcode" {...field} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="partnerCountry"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Partner Country</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Country" {...field} />
                           </FormControl>
                         </FormItem>
                       )}
@@ -917,8 +1127,17 @@ const ClientDetailsForm: React.FC<ClientDetailsFormProps> = ({ clientId, onSaved
                                   type="number" 
                                   placeholder="Annual gross income" 
                                   min={0} 
-                                  {...field} 
-                                  onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                                  value={field.value || 0}
+                                  onChange={(e) => {
+                                    const value = e.target.valueAsNumber || 0;
+                                    field.onChange(value);
+                                    // Force form to update
+                                    form.setValue("partnerIncome", value, { 
+                                      shouldDirty: true,
+                                      shouldTouch: true,
+                                      shouldValidate: true 
+                                    });
+                                  }}
                                 />
                               </FormControl>
                             </FormItem>
@@ -936,8 +1155,17 @@ const ClientDetailsForm: React.FC<ClientDetailsFormProps> = ({ clientId, onSaved
                                   type="number" 
                                   placeholder="Annual non-taxable income" 
                                   min={0} 
-                                  {...field} 
-                                  onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                                  value={field.value || 0}
+                                  onChange={(e) => {
+                                    const value = e.target.valueAsNumber || 0;
+                                    field.onChange(value);
+                                    // Force form to update
+                                    form.setValue("partnerNonTaxableIncome", value, {
+                                      shouldDirty: true,
+                                      shouldTouch: true,
+                                      shouldValidate: true
+                                    });
+                                  }}
                                 />
                               </FormControl>
                             </FormItem>
@@ -996,8 +1224,16 @@ const ClientDetailsForm: React.FC<ClientDetailsFormProps> = ({ clientId, onSaved
                               type="number" 
                               placeholder="Weekly rent" 
                               min={0} 
-                              {...field} 
-                              onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                              value={field.value || 0}
+                              onChange={(e) => {
+                                const value = e.target.valueAsNumber || 0;
+                                field.onChange(value);
+                                form.setValue("rentPerWeek", value, {
+                                  shouldDirty: true,
+                                  shouldTouch: true,
+                                  shouldValidate: true
+                                });
+                              }}
                             />
                           </FormControl>
                         </FormItem>
@@ -1016,8 +1252,16 @@ const ClientDetailsForm: React.FC<ClientDetailsFormProps> = ({ clientId, onSaved
                             type="number" 
                             placeholder="Monthly expenses" 
                             min={0} 
-                            {...field} 
-                            onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                            value={field.value || 0}
+                            onChange={(e) => {
+                              const value = e.target.valueAsNumber || 0;
+                              field.onChange(value);
+                              form.setValue("monthlyLivingExpenses", value, {
+                                shouldDirty: true,
+                                shouldTouch: true,
+                                shouldValidate: true
+                              });
+                            }}
                           />
                         </FormControl>
                       </FormItem>
@@ -1100,8 +1344,16 @@ const ClientDetailsForm: React.FC<ClientDetailsFormProps> = ({ clientId, onSaved
                               type="number" 
                               placeholder="Annual passive income goal" 
                               min={0} 
-                              {...field} 
-                              onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                              value={field.value || 0}
+                              onChange={(e) => {
+                                const value = e.target.valueAsNumber || 0;
+                                field.onChange(value);
+                                form.setValue("retirementPassiveIncomeGoal", value, {
+                                  shouldDirty: true,
+                                  shouldTouch: true,
+                                  shouldValidate: true
+                                });
+                              }}
                             />
                           </FormControl>
                         </FormItem>
@@ -1120,8 +1372,16 @@ const ClientDetailsForm: React.FC<ClientDetailsFormProps> = ({ clientId, onSaved
                               placeholder="Retirement age" 
                               min={0} 
                               max={120} 
-                              {...field} 
-                              onChange={(e) => field.onChange(e.target.valueAsNumber || 65)}
+                              value={field.value || 65}
+                              onChange={(e) => {
+                                const value = e.target.valueAsNumber || 65;
+                                field.onChange(value);
+                                form.setValue("desiredRetirementAge", value, {
+                                  shouldDirty: true,
+                                  shouldTouch: true,
+                                  shouldValidate: true
+                                });
+                              }}
                             />
                           </FormControl>
                         </FormItem>
@@ -1153,71 +1413,14 @@ const ClientDetailsForm: React.FC<ClientDetailsFormProps> = ({ clientId, onSaved
                 ) : (
                   <div className="space-y-6">
                     {assetFields.map((field, index) => (
-                      <div key={field.id} className="border rounded-lg p-4">
-                        <div className="flex justify-between items-center mb-4">
-                          <h4 className="font-medium">Asset {index + 1}</h4>
-                          <Button 
-                            type="button" 
-                            variant="destructive" 
-                            size="sm"
-                            onClick={() => removeAsset(index)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        
-                        <div className="space-y-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField
-                              control={form.control}
-                              name={`assets.${index}.assetType`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Asset Type</FormLabel>
-                                  <Select 
-                                    onValueChange={field.onChange} 
-                                    defaultValue={field.value}
-                                  >
-                                    <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Select asset type" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      {ASSET_TYPES.map((type) => (
-                                        <SelectItem key={type} value={type}>
-                                          {type}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </FormItem>
-                              )}
-                            />
-                            
-                            <FormField
-                              control={form.control}
-                              name={`assets.${index}.currentValue`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Current Value ($)</FormLabel>
-                                  <FormControl>
-                                    <Input 
-                                      type="number" 
-                                      placeholder="Current value" 
-                                      min={0} 
-                                      {...field} 
-                                      onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                                    />
-                                  </FormControl>
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                          
-                          {/* Other asset fields can go here - we've shortened this for brevity */}
-                        </div>
-                      </div>
+                      <AssetListSection
+                        key={field.id}
+                        index={index}
+                        remove={removeAsset}
+                        control={form.control}
+                        assetTypes={ASSET_TYPES}
+                        incomeFrequencies={INCOME_FREQUENCIES}
+                      />
                     ))}
                   </div>
                 )}
@@ -1245,71 +1448,16 @@ const ClientDetailsForm: React.FC<ClientDetailsFormProps> = ({ clientId, onSaved
                 ) : (
                   <div className="space-y-6">
                     {liabilityFields.map((field, index) => (
-                      <div key={field.id} className="border rounded-lg p-4">
-                        <div className="flex justify-between items-center mb-4">
-                          <h4 className="font-medium">Liability {index + 1}</h4>
-                          <Button 
-                            type="button" 
-                            variant="destructive" 
-                            size="sm"
-                            onClick={() => removeLiability(index)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        
-                        <div className="space-y-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField
-                              control={form.control}
-                              name={`liabilities.${index}.liabilityType`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Liability Type</FormLabel>
-                                  <Select 
-                                    onValueChange={field.onChange} 
-                                    defaultValue={field.value}
-                                  >
-                                    <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Select liability type" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      {LIABILITY_TYPES.map((type) => (
-                                        <SelectItem key={type} value={type}>
-                                          {type}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </FormItem>
-                              )}
-                            />
-                            
-                            <FormField
-                              control={form.control}
-                              name={`liabilities.${index}.loanBalance`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Loan Balance ($)</FormLabel>
-                                  <FormControl>
-                                    <Input 
-                                      type="number" 
-                                      placeholder="Loan balance" 
-                                      min={0} 
-                                      {...field} 
-                                      onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                                    />
-                                  </FormControl>
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                          
-                          {/* Other liability fields can go here - shortened for brevity */}
-                        </div>
-                      </div>
+                      <LiabilityListSection
+                        key={field.id}
+                        index={index}
+                        remove={removeLiability}
+                        control={form.control}
+                        liabilityTypes={LIABILITY_TYPES}
+                        repaymentFrequencies={REPAYMENT_FREQUENCIES}
+                        termTypes={TERM_TYPES}
+                        loanTypes={LOAN_TYPES}
+                      />
                     ))}
                   </div>
                 )}

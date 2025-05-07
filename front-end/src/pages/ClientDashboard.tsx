@@ -3,16 +3,23 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import PortfolioSummary from '@/components/PortfolioSummary';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Plus, FileCog, FileEdit } from 'lucide-react';
+import { Loader2, Plus, FileCog, FileEdit, LineChart } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import PortfolioValueChart from '@/components/charts/PortfolioValueChart';
 import PropertyAllocationChart from '@/components/charts/PropertyAllocationChart';
 import CashFlowChart from '@/components/charts/CashFlowChart';
 import apiService from '@/services/api';
+import ClientDetailsForm from '@/components/ClientDetailsForm';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
+import SummarySection from '@/components/SummarySection';
+import InvestmentAllocation from '@/components/dashboard/InvestmentAllocation';
+import MortgageDetails from '@/components/dashboard/MortgageDetails';
+import TaxAnalysis from '@/components/dashboard/TaxAnalysis';
+import LiabilitiesBreakdown from '@/components/dashboard/LiabilitiesBreakdown';
+import Retirement from '@/components/dashboard/Retirement';
 
 type Property = {
   id: string;
@@ -22,74 +29,10 @@ type Property = {
   beds: number;
   baths: number;
   area: number;
-  image_url: string | null;
-  rental_yield: number | null;
-  growth_rate: number | null;
-};
-
-const generatePortfolioValueData = () => {
-  const data = [];
-  const now = new Date();
-  const monthNames = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-  ];
-  
-  for (let i = 11; i >= 0; i--) {
-    const month = new Date(now);
-    month.setMonth(now.getMonth() - i);
-    const monthName = monthNames[month.getMonth()];
-    const year = month.getFullYear().toString().substr(-2);
-    
-    // Start with a base value, then add random growth
-    const baseValue = 1500000;
-    // Each month adds 0.5-1.5% growth
-    const growthFactor = 1 + (0.005 + Math.random() * 0.01) * (12 - i);
-    
-    data.push({
-      month: `${monthName} '${year}`,
-      value: Math.round(baseValue * growthFactor)
-    });
-  }
-  
-  return data;
-};
-
-const generatePropertyAllocationData = () => {
-  return [
-    { name: 'Residential', value: 1200000, color: '#8884d8' },
-    { name: 'Commercial', value: 800000, color: '#82ca9d' },
-    { name: 'Industrial', value: 600000, color: '#ffc658' },
-  ];
-};
-
-const generateCashFlowData = () => {
-  const data = [];
-  const now = new Date();
-  const monthNames = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-  ];
-  
-  for (let i = 11; i >= 0; i--) {
-    const month = new Date(now);
-    month.setMonth(now.getMonth() - i);
-    const monthName = monthNames[month.getMonth()];
-    const year = month.getFullYear().toString().substr(-2);
-    
-    // Random income between 15000-25000
-    const income = 15000 + Math.random() * 10000;
-    // Random expenses between 10000-18000
-    const expenses = 10000 + Math.random() * 8000;
-    
-    data.push({
-      month: `${monthName} '${year}`,
-      income: Math.round(income),
-      expenses: Math.round(expenses)
-    });
-  }
-  
-  return data;
+  imageUrl: string | null;
+  rentalYield: number | null;
+  growthRate: number | null;
+  features: string[] | null;
 };
 
 const ClientDashboard = () => {
@@ -98,25 +41,14 @@ const ClientDashboard = () => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [savedProperties, setSavedProperties] = useState<Property[]>([]);
   const [isFetchingProperties, setIsFetchingProperties] = useState(true);
-  
-  // Chart data
-  const portfolioValueData = generatePortfolioValueData();
-  const propertyAllocationData = generatePropertyAllocationData();
-  const cashFlowData = generateCashFlowData();
+  const [portfolioSummary, setPortfolioSummary] = useState<any>(null);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [profileDetails, setProfileDetails] = useState<any>(null);
 
-  // Calculate total portfolio value
-  const totalPortfolioValue = properties.reduce((total, property) => total + property.price, 0);
-  
-  // Calculate growth - using a placeholder growth percentage
-  const portfolioGrowthPercentage = 12.5;
-  
-  // Calculate cashflow - simplified placeholder
-  const monthlyCashflow = 5200;
-  const cashflowPercentage = 3.8;
-  
-  // Calculate equity - simplified placeholder
-  const totalEquity = totalPortfolioValue * 0.35;
-  const equityPercentage = 7.2;
+  // Chart data (still dummy for now)
+  const portfolioValueData = [];
+  const propertyAllocationData = [];
+  const cashFlowData = [];
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -124,51 +56,95 @@ const ClientDashboard = () => {
     }
   }, [isLoading, user, navigate]);
 
+  // Move fetchPortfolio out of useEffect so it can be reused
+  const fetchPortfolio = async () => {
+    if (!user) return;
+    setIsFetchingProperties(true);
+    try {
+      // Fetch portfolio summary and properties
+      const { data: portfolio } = await apiService.getPortfolio(user.id);
+      setPortfolioSummary(portfolio);
+      // Properties owned by user
+      setProperties(
+        (portfolio.properties || []).map((property: any) => ({
+          id: property.id?.toString() || '',
+          name: property.name || '',
+          address: [property.street, property.suburb, property.state, property.postcode].filter(Boolean).join(', '),
+          price: property.price ? Number(property.price) : 0,
+          beds: property.beds || 0,
+          baths: property.baths || 0,
+          area: property.area || 0,
+          imageUrl: property.imageUrl || '',
+          rentalYield: property.rentalYield ? Number(property.rentalYield) : 0,
+          growthRate: property.growthRate ? Number(property.growthRate) : 0,
+          features: property.features || [],
+        }))
+      );
+      // Optionally, fetch saved properties as before
+      const { data: savedData } = await apiService.getSavedProperties(user.id, false);
+      if (savedData && savedData.length > 0) {
+        const savedIds = savedData.map((item: any) => item.property_id);
+        const { data: savedPropsData } = await apiService.getPropertiesByIds(savedIds);
+        setSavedProperties(savedPropsData.map((property: any) => ({
+          id: property.id?.toString() || '',
+          name: property.name || '',
+          address: [property.street, property.suburb, property.state, property.postcode].filter(Boolean).join(', '),
+          price: property.price ? Number(property.price) : 0,
+          beds: property.beds || 0,
+          baths: property.baths || 0,
+          area: property.area || 0,
+          imageUrl: property.imageUrl || '',
+          rentalYield: property.rentalYield ? Number(property.rentalYield) : 0,
+          growthRate: property.growthRate ? Number(property.growthRate) : 0,
+          features: property.features || [],
+        })));
+      } else {
+        setSavedProperties([]);
+      }
+    } catch (error) {
+      console.error('Error fetching portfolio:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load portfolio data",
+        variant: "destructive"
+      });
+    } finally {
+      setIsFetchingProperties(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchProperties = async () => {
+    if (user) {
+      fetchPortfolio();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  // Fetch full profile details for summary section
+  useEffect(() => {
+    const fetchProfileDetails = async () => {
       if (!user) return;
       try {
-        // Fetch all properties assigned to the user through saved_properties
-        const { data: savedPropertiesData } = await apiService.getSavedProperties(user.id);
-        
-        if (savedPropertiesData && savedPropertiesData.length > 0) {
-          const propertyIds = savedPropertiesData.map(item => item.property_id);
-          
-          const { data: propertiesData } = await apiService.getPropertiesByIds(propertyIds);
-          
-          setProperties(propertiesData || []);
-        } else {
-          setProperties([]);
-        }
-        
-        // Fetch saved properties (not yet purchased)
-        const { data: savedData } = await apiService.getSavedProperties(user.id, false);
-        
-        if (savedData && savedData.length > 0) {
-          const savedIds = savedData.map(item => item.property_id);
-          
-          const { data: savedPropsData } = await apiService.getPropertiesByIds(savedIds);
-          
-          setSavedProperties(savedPropsData || []);
-        } else {
-          setSavedProperties([]);
-        }
+        const { data } = await apiService.getProfileDetails(user.id);
+        setProfileDetails(data);
       } catch (error) {
-        console.error('Error fetching properties:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load properties",
-          variant: "destructive"
-        });
-      } finally {
-        setIsFetchingProperties(false);
+        console.error('Error fetching profile details:', error);
       }
     };
-
     if (user) {
-      fetchProperties();
+      fetchProfileDetails();
     }
   }, [user]);
+
+  // Add a handler to refresh portfolio after editing
+  const handleEditSaved = () => {
+    setShowEditForm(false);
+    // Optionally, refresh portfolio data
+    if (user) {
+      // Re-fetch portfolio
+      fetchPortfolio();
+    }
+  };
 
   if (isLoading || isFetchingProperties) {
     return (
@@ -194,30 +170,56 @@ const ClientDashboard = () => {
       <Navbar />
       <main className="flex-grow bg-gray-50 py-8">
         <div className="container mx-auto px-4">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold mb-2">Your Portfolio Dashboard</h1>
-            <p className="text-gray-600">
-              Welcome back, {profile?.first_name || 'Investor'}! Here's an overview of your property investments.
-            </p>
+          <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">Your Portfolio Dashboard</h1>
+              <p className="text-gray-600">
+                Welcome back, {profile?.firstName || 'Investor'}! Here's an overview of your property investments.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => navigate('/modeling')}>
+                <LineChart className="w-4 h-4 mr-2" />
+                Modeling Dashboard
+              </Button>
+              <Button variant="outline" onClick={() => setShowEditForm(true)}>
+                Edit Details
+              </Button>
+            </div>
           </div>
-          
-          {/* Portfolio Summary Cards */}
-          <PortfolioSummary 
-            totalValue={totalPortfolioValue || 0}
-            growthPercentage={portfolioGrowthPercentage}
-            cashflow={monthlyCashflow}
-            cashflowPercentage={cashflowPercentage}
-            equity={totalEquity}
-            equityPercentage={equityPercentage}
-            propertyCount={properties.length}
+
+          {/* Summary Section */}
+          <SummarySection 
+            assets={profileDetails?.assets ?? []}
+            liabilities={profileDetails?.liabilities ?? []}
+            profile={profileDetails?.profile ?? {}}
+            portfolioSummary={portfolioSummary}
           />
-          
+
+          {/* Edit Details Modal */}
+          <Dialog open={showEditForm} onOpenChange={setShowEditForm}>
+            <DialogContent className="max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Edit Your Details</DialogTitle>
+              </DialogHeader>
+              <ClientDetailsForm clientId={user?.id} onSaved={handleEditSaved} />
+              <DialogClose asChild>
+                <Button variant="outline" className="mt-4 w-full">Close</Button>
+              </DialogClose>
+            </DialogContent>
+          </Dialog>
+        
           {/* Portfolio Charts and Property Management */}
           <div className="mt-8">
             <Tabs defaultValue="overview">
               <div className="mb-6">
                 <TabsList className="w-full sm:w-auto">
                   <TabsTrigger value="overview">Portfolio Overview</TabsTrigger>
+                  <TabsTrigger value="investment">Investment Analysis</TabsTrigger>
+                  <TabsTrigger value="mortgage">Mortgage Details</TabsTrigger>
+                  <TabsTrigger value="tax">Tax Analysis</TabsTrigger>
+                  <TabsTrigger value="liabilities">Liabilities</TabsTrigger>
+                  <TabsTrigger value="retirement">Retirement</TabsTrigger>
                   <TabsTrigger value="properties">Your Properties</TabsTrigger>
                   <TabsTrigger value="watchlist">Saved Properties</TabsTrigger>
                 </TabsList>
@@ -257,6 +259,37 @@ const ClientDashboard = () => {
                 </Card>
               </TabsContent>
               
+              <TabsContent value="investment" className="space-y-6">
+                <InvestmentAllocation assets={profileDetails?.assets ?? []} />
+              </TabsContent>
+
+              <TabsContent value="mortgage" className="space-y-6">
+                <MortgageDetails 
+                  primaryMortgage={profileDetails?.liabilities?.find(l => l.isPrimaryResidence)} 
+                  dateOfBirth={profileDetails?.profile?.dateOfBirth} 
+                />
+              </TabsContent>
+
+              <TabsContent value="tax" className="space-y-6">
+                <TaxAnalysis 
+                  assets={profileDetails?.assets ?? []}
+                  liabilities={profileDetails?.liabilities ?? []}
+                  profile={profileDetails?.profile ?? {}}
+                />
+              </TabsContent>
+
+              <TabsContent value="liabilities" className="space-y-6">
+                <LiabilitiesBreakdown liabilities={profileDetails?.liabilities ?? []} />
+              </TabsContent>
+
+              <TabsContent value="retirement" className="space-y-6">
+                <Retirement 
+                  profile={profileDetails?.profile ?? {}}
+                  assets={profileDetails?.assets ?? []}
+                  liabilities={profileDetails?.liabilities ?? []}
+                />
+              </TabsContent>
+
               <TabsContent value="properties">
                 <Card>
                   <CardHeader>
@@ -280,9 +313,9 @@ const ClientDashboard = () => {
                           <Card key={property.id} className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
                             onClick={() => navigate(`/property/${property.id}`)}>
                             <div className="aspect-video bg-gray-100 relative">
-                              {property.image_url ? (
+                              {property.imageUrl ? (
                                 <img 
-                                  src={property.image_url} 
+                                  src={property.imageUrl} 
                                   alt={property.name}
                                   className="w-full h-full object-cover"
                                 />
@@ -301,16 +334,16 @@ const ClientDashboard = () => {
                                 <span>{property.baths} baths</span>
                                 <span>{property.area} m²</span>
                               </div>
-                              {(property.rental_yield || property.growth_rate) && (
+                              {(property.rentalYield || property.growthRate) && (
                                 <div className="flex justify-between mt-3 text-sm">
-                                  {property.rental_yield && (
+                                  {property.rentalYield && (
                                     <span className="text-blue-600">
-                                      {property.rental_yield}% yield
+                                      {property.rentalYield}% yield
                                     </span>
                                   )}
-                                  {property.growth_rate && (
+                                  {property.growthRate && (
                                     <span className="text-green-600">
-                                      {property.growth_rate}% growth p.a.
+                                      {property.growthRate}% growth p.a.
                                     </span>
                                   )}
                                 </div>
@@ -347,9 +380,9 @@ const ClientDashboard = () => {
                           <Card key={property.id} className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
                             onClick={() => navigate(`/property/${property.id}`)}>
                             <div className="aspect-video bg-gray-100 relative">
-                              {property.image_url ? (
+                              {property.imageUrl ? (
                                 <img 
-                                  src={property.image_url} 
+                                  src={property.imageUrl} 
                                   alt={property.name}
                                   className="w-full h-full object-cover"
                                 />
@@ -368,16 +401,16 @@ const ClientDashboard = () => {
                                 <span>{property.baths} baths</span>
                                 <span>{property.area} m²</span>
                               </div>
-                              {(property.rental_yield || property.growth_rate) && (
+                              {(property.rentalYield || property.growthRate) && (
                                 <div className="flex justify-between mt-3 text-sm">
-                                  {property.rental_yield && (
+                                  {property.rentalYield && (
                                     <span className="text-blue-600">
-                                      {property.rental_yield}% yield
+                                      {property.rentalYield}% yield
                                     </span>
                                   )}
-                                  {property.growth_rate && (
+                                  {property.growthRate && (
                                     <span className="text-green-600">
-                                      {property.growth_rate}% growth p.a.
+                                      {property.growthRate}% growth p.a.
                                     </span>
                                   )}
                                 </div>

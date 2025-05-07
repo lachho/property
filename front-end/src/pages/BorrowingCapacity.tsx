@@ -342,7 +342,7 @@ const BorrowingCapacity = () => {
 
       {showResults && (
         <Dialog open={showResults} onOpenChange={handleResultsClose}>
-          <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-3xl w-full max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-2xl">Your Borrowing Capacity Results</DialogTitle>
             </DialogHeader>

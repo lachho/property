@@ -77,7 +77,7 @@ public class PortfolioServiceImpl implements PortfolioService {
         Portfolio projectedPortfolio = new Portfolio();
         projectedPortfolio.setProperties(currentPortfolio.getProperties().stream()
                 .map(this::copyProperty)
-                .collect(Collectors.toList()));
+                .collect(java.util.stream.Collectors.toSet()));
 
         // Add the new property to the projected portfolio
         Property newProperty = convertToEntity(request.getNewProperty());
@@ -107,72 +107,50 @@ public class PortfolioServiceImpl implements PortfolioService {
     }
 
     private void calculatePortfolioMetrics(Portfolio portfolio) {
-        BigDecimal totalValue = BigDecimal.ZERO;
-        BigDecimal totalDebt = BigDecimal.ZERO;
-        BigDecimal totalMonthlyCashFlow = BigDecimal.ZERO;
-
-        for (Property property : portfolio.getProperties()) {
-            totalValue = totalValue.add(property.getCurrentValue());
-            totalDebt = totalDebt.add(property.getMortgageAmount());
-            totalMonthlyCashFlow = totalMonthlyCashFlow.add(property.getMonthlyCashFlow());
-        }
-
-        portfolio.setTotalValue(totalValue);
-        portfolio.setTotalDebt(totalDebt);
-        portfolio.setTotalEquity(totalValue.subtract(totalDebt));
-        portfolio.setMonthlyCashFlow(totalMonthlyCashFlow);
-        portfolio.setAnnualReturn(calculateAnnualReturn(portfolio));
+        // TODO: Redefine metrics based on new property fields
+        portfolio.setTotalValue(BigDecimal.ZERO);
+        portfolio.setTotalDebt(BigDecimal.ZERO);
+        portfolio.setTotalEquity(BigDecimal.ZERO);
+        portfolio.setMonthlyCashFlow(BigDecimal.ZERO);
+        portfolio.setAnnualReturn(BigDecimal.ZERO);
     }
 
     private BigDecimal calculateAnnualReturn(Portfolio portfolio) {
-        if (portfolio.getTotalValue().compareTo(BigDecimal.ZERO) == 0) {
-            return BigDecimal.ZERO;
-        }
-        return portfolio.getMonthlyCashFlow()
-                .multiply(BigDecimal.valueOf(12))
-                .divide(portfolio.getTotalValue(), 4, RoundingMode.HALF_UP)
-                .multiply(BigDecimal.valueOf(100));
+        // TODO: Redefine annual return calculation based on new property fields
+        return BigDecimal.ZERO;
     }
 
     private BigDecimal calculateCashOnCashReturn(Property property, SimulationRequest request) {
-        BigDecimal annualCashFlow = property.getMonthlyCashFlow().multiply(BigDecimal.valueOf(12));
-        return annualCashFlow.divide(request.getDownPayment(), 4, RoundingMode.HALF_UP)
-                .multiply(BigDecimal.valueOf(100));
+        // TODO: Redefine cash on cash return calculation based on new property fields
+        return BigDecimal.ZERO;
     }
 
     private BigDecimal calculateCapRate(Property property) {
-        BigDecimal annualNetOperatingIncome = property.getMonthlyRent()
-                .multiply(BigDecimal.valueOf(12))
-                .subtract(property.getMonthlyExpenses().multiply(BigDecimal.valueOf(12)));
-        return annualNetOperatingIncome.divide(property.getCurrentValue(), 4, RoundingMode.HALF_UP)
-                .multiply(BigDecimal.valueOf(100));
+        // TODO: Redefine cap rate calculation based on new property fields
+        return BigDecimal.ZERO;
     }
 
     private BigDecimal calculateDebtToIncomeRatio(Portfolio portfolio) {
-        BigDecimal annualIncome = portfolio.getMonthlyCashFlow().multiply(BigDecimal.valueOf(12));
-        if (annualIncome.compareTo(BigDecimal.ZERO) == 0) {
-            return BigDecimal.ZERO;
-        }
-        return portfolio.getTotalDebt().divide(annualIncome, 4, RoundingMode.HALF_UP);
+        // TODO: Redefine debt to income ratio calculation based on new property fields
+        return BigDecimal.ZERO;
     }
 
     private Property copyProperty(Property original) {
         Property copy = new Property();
-        copy.setAddress(original.getAddress());
-        copy.setCity(original.getCity());
+        copy.setName(original.getName());
+        copy.setStreet(original.getStreet());
+        copy.setSuburb(original.getSuburb());
         copy.setState(original.getState());
-        copy.setZipCode(original.getZipCode());
-        copy.setPurchasePrice(original.getPurchasePrice());
-        copy.setCurrentValue(original.getCurrentValue());
-        copy.setMortgageAmount(original.getMortgageAmount());
-        copy.setMonthlyRent(original.getMonthlyRent());
-        copy.setMonthlyExpenses(original.getMonthlyExpenses());
-        copy.setMonthlyCashFlow(original.getMonthlyCashFlow());
-        copy.setAnnualReturn(original.getAnnualReturn());
-        copy.setYearBuilt(original.getYearBuilt());
-        copy.setBedrooms(original.getBedrooms());
-        copy.setBathrooms(original.getBathrooms());
-        copy.setSquareFootage(original.getSquareFootage());
+        copy.setPostcode(original.getPostcode());
+        copy.setDescription(original.getDescription());
+        copy.setPrice(original.getPrice());
+        copy.setBeds(original.getBeds());
+        copy.setBaths(original.getBaths());
+        copy.setArea(original.getArea());
+        copy.setGrowthRate(original.getGrowthRate());
+        copy.setRentalYield(original.getRentalYield());
+        copy.setImageUrl(original.getImageUrl());
+        copy.setFeatures(original.getFeatures());
         return copy;
     }
 
@@ -182,7 +160,7 @@ public class PortfolioServiceImpl implements PortfolioService {
                 .userId(portfolio.getProfile().getId())
                 .properties(portfolio.getProperties().stream()
                         .map(this::convertToDTO)
-                        .collect(Collectors.toList()))
+                        .collect(java.util.stream.Collectors.toSet()))
                 .totalValue(portfolio.getTotalValue())
                 .totalDebt(portfolio.getTotalDebt())
                 .totalEquity(portfolio.getTotalEquity())
@@ -194,41 +172,39 @@ public class PortfolioServiceImpl implements PortfolioService {
     private PropertyDTO convertToDTO(Property property) {
         return PropertyDTO.builder()
                 .id(property.getId())
-                .address(property.getAddress())
-                .city(property.getCity())
+                .name(property.getName())
+                .street(property.getStreet())
+                .suburb(property.getSuburb())
                 .state(property.getState())
-                .zipCode(property.getZipCode())
-                .purchasePrice(property.getPurchasePrice())
-                .currentValue(property.getCurrentValue())
-                .mortgageAmount(property.getMortgageAmount())
-                .monthlyRent(property.getMonthlyRent())
-                .monthlyExpenses(property.getMonthlyExpenses())
-                .monthlyCashFlow(property.getMonthlyCashFlow())
-                .annualReturn(property.getAnnualReturn())
-                .yearBuilt(property.getYearBuilt())
-                .bedrooms(property.getBedrooms())
-                .bathrooms(property.getBathrooms())
-                .squareFootage(property.getSquareFootage())
+                .postcode(property.getPostcode())
+                .description(property.getDescription())
+                .price(property.getPrice())
+                .beds(property.getBeds())
+                .baths(property.getBaths())
+                .area(property.getArea())
+                .growthRate(property.getGrowthRate())
+                .rentalYield(property.getRentalYield())
+                .imageUrl(property.getImageUrl())
+                .features(property.getFeatures())
                 .build();
     }
 
     private Property convertToEntity(PropertyDTO dto) {
         Property property = new Property();
-        property.setAddress(dto.getAddress());
-        property.setCity(dto.getCity());
+        property.setName(dto.getName());
+        property.setStreet(dto.getStreet());
+        property.setSuburb(dto.getSuburb());
         property.setState(dto.getState());
-        property.setZipCode(dto.getZipCode());
-        property.setPurchasePrice(dto.getPurchasePrice());
-        property.setCurrentValue(dto.getCurrentValue());
-        property.setMortgageAmount(dto.getMortgageAmount());
-        property.setMonthlyRent(dto.getMonthlyRent());
-        property.setMonthlyExpenses(dto.getMonthlyExpenses());
-        property.setMonthlyCashFlow(dto.getMonthlyCashFlow());
-        property.setAnnualReturn(dto.getAnnualReturn());
-        property.setYearBuilt(dto.getYearBuilt());
-        property.setBedrooms(dto.getBedrooms());
-        property.setBathrooms(dto.getBathrooms());
-        property.setSquareFootage(dto.getSquareFootage());
+        property.setPostcode(dto.getPostcode());
+        property.setDescription(dto.getDescription());
+        property.setPrice(dto.getPrice());
+        property.setBeds(dto.getBeds());
+        property.setBaths(dto.getBaths());
+        property.setArea(dto.getArea());
+        property.setGrowthRate(dto.getGrowthRate());
+        property.setRentalYield(dto.getRentalYield());
+        property.setImageUrl(dto.getImageUrl());
+        property.setFeatures(dto.getFeatures());
         return property;
     }
 } 

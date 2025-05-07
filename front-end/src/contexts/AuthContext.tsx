@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { toast } from '@/hooks/use-toast';
 import apiService, { LoginRequest, RegisterRequest, Profile as ApiProfile } from '@/services/api';
+import { Profile } from '@/services/api';
 
 // Simple function to decode JWT tokens
 function parseJwt(token: string) {
@@ -34,31 +35,6 @@ interface JwtPayload {
 }
 
 // Define a proper Profile interface with all needed properties
-interface Profile {
-  id: string;
-  first_name?: string;
-  last_name?: string;
-  email: string;
-  role: 'ADMIN' | 'CLIENT';
-  phone?: string;
-  gross_income?: number;
-  partner_income?: number | null;
-  existing_loans?: number | null;
-  dependants?: number | null;
-  marital_status?: string;
-  date_of_birth?: string | null;
-  // Calculator fields
-  borrowing_capacity?: number | null;
-  purchase_timeframe?: string | null;
-  loan_amount?: number | null;
-  interest_rate?: number | null;
-  loan_term?: string | null;
-  repayment_frequency?: string | null;
-  loan_type?: string | null;
-  additional_repayments?: number | null;
-  monthly_repayment?: number | null;
-}
-
 interface AuthContextType {
   user: User | null;
   profile: Profile | null;
@@ -138,28 +114,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.log("Profile data received:", profileData);
       
       if (profileData) {
-        // Convert API profile to our internal Profile type
-        const userProfile: Profile = {
-          id: profileData.id?.toString() || '',
-          email: profileData.email || '',
-          role: (profileData.role?.toUpperCase() as 'ADMIN' | 'CLIENT') || 'CLIENT',
-          first_name: profileData.firstName || '',
-          last_name: profileData.lastName || '',
-          phone: profileData.phone || '',
-          gross_income: profileData.grossIncome || 0,
-          partner_income: profileData.partnerIncome || null,
-          dependants: profileData.dependants || null,
-          date_of_birth: profileData.dateOfBirth as string | null || null,
-        };
-        
-        console.log("Converted user profile:", userProfile);
-        
-        setProfile(userProfile);
+        setProfile(profileData);
         
         // Update user info with complete data
         setUser(prev => ({
           ...prev!,
-          id: profileData.id?.toString() || prev?.id || '',
+          id: profileData.id || prev?.id || '',
           email: profileData.email || prev?.email || '',
           role: (profileData.role?.toUpperCase() as 'ADMIN' | 'CLIENT') || prev?.role || 'CLIENT',
           firstName: profileData.firstName || prev?.firstName,
@@ -328,62 +288,40 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       console.log("Updating profile for user:", user.id, data);
       
-      // Convert our internal Profile to API Profile format
-      const apiProfileData: Partial<ApiProfile> = {
-        id: profile?.id ? parseInt(profile.id) : undefined,
-        email: data.email || profile?.email,
-        firstName: data.first_name || profile?.first_name,
-        lastName: data.last_name || profile?.last_name,
-        phone: data.phone || profile?.phone,
-        grossIncome: data.gross_income || profile?.gross_income,
-        partnerIncome: data.partner_income || profile?.partner_income,
-        dependants: data.dependants || profile?.dependants,
-        dateOfBirth: data.date_of_birth || profile?.date_of_birth,
-        role: data.role || profile?.role
+      // Get current profile data
+      const { data: currentProfile } = await apiService.getProfileById(user.id);
+      
+      // Merge current data with updates
+      const updatedData: Profile = {
+        ...currentProfile,
+        ...data
       };
       
       // Update profile data through API
-      const { data: responseData } = await apiService.updateProfile(user.id, apiProfileData as ApiProfile);
-      
-      // Convert API response back to our Profile format
-      const updatedProfile: Profile = {
-        ...profile!,
-        ...data,
-        id: responseData.id?.toString() || profile?.id || '',
-        email: responseData.email,
-        role: (responseData.role?.toUpperCase() as 'ADMIN' | 'CLIENT') || profile?.role || 'CLIENT',
-        first_name: responseData.firstName,
-        last_name: responseData.lastName,
-        phone: responseData.phone,
-        gross_income: responseData.grossIncome,
-        partner_income: responseData.partnerIncome,
-        dependants: responseData.dependants,
-        date_of_birth: responseData.dateOfBirth as string | null,
-      };
+      const { data: responseData } = await apiService.updateProfile(user.id, updatedData);
       
       // Update local profile state
-      setProfile(updatedProfile);
+      setProfile(responseData);
       
-      // Update user state with new info
-      setUser(prev => ({
-        ...prev!,
-        email: responseData.email || prev?.email || '',
-        role: (responseData.role?.toUpperCase() as 'ADMIN' | 'CLIENT') || prev?.role || 'CLIENT',
-        firstName: responseData.firstName || prev?.firstName,
-        lastName: responseData.lastName || prev?.lastName,
-      }));
-      
-      console.log("Profile updated successfully");
+      // Update user info if name or email changed
+      if (data.firstName || data.lastName || data.email) {
+        setUser(prev => ({
+          ...prev!,
+          email: data.email || prev?.email || '',
+          firstName: data.firstName || prev?.firstName,
+          lastName: data.lastName || prev?.lastName,
+        }));
+      }
       
       toast({
-        title: "Profile Updated",
-        description: "Your profile has been updated successfully"
+        title: "Success",
+        description: "Profile updated successfully"
       });
-    } catch (error: any) {
-      console.error("Error updating profile:", error.message);
+    } catch (error) {
+      console.error("Error updating profile:", error);
       toast({
-        title: "Update Failed",
-        description: error.response?.data?.message || "Could not update profile",
+        title: "Error",
+        description: "Failed to update profile",
         variant: "destructive"
       });
     } finally {

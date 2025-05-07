@@ -15,15 +15,19 @@ import apiService from '@/services/api';
 
 interface PropertyFormData {
   name: string;
-  address: string;
+  street: string;
+  suburb: string;
+  state: string;
+  postcode: string;
+  city: string;
   price: number;
   beds: number;
   baths: number;
   area: number;
   description: string;
-  growth_rate: number;
-  rental_yield: number;
-  image_url?: string;
+  growthRate: number;
+  rentalYield: number;
+  imageUrl?: string;
   features?: string[];
 }
 
@@ -37,8 +41,8 @@ const AddProperty = () => {
 
   const { register, handleSubmit, formState: { errors } } = useForm<PropertyFormData>({
     defaultValues: {
-      growth_rate: 3.5,
-      rental_yield: 4.2
+      growthRate: 3.5,
+      rentalYield: 4.2
     }
   });
 
@@ -68,13 +72,19 @@ const AddProperty = () => {
     try {
       await apiService.createProperty({
         name: data.name,
-        address: data.address,
+        street: data.street,
+        suburb: data.suburb,
+        state: data.state,
+        postcode: data.postcode,
         description: data.description,
-        purchasePrice: data.price,
-        currentValue: data.price,
-        deposit: 0,
-        userId: undefined,
-        status: '',
+        price: data.price,
+        beds: data.beds,
+        baths: data.baths,
+        area: data.area,
+        growthRate: data.growthRate,
+        rentalYield: data.rentalYield,
+        imageUrl: data.imageUrl,
+        features: data.features,
       });
       toast({
         title: "Success",
@@ -136,23 +146,48 @@ const AddProperty = () => {
                   />
                   {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>}
                 </div>
-                
                 <div>
-                  <Label htmlFor="address">Address</Label>
+                  <Label htmlFor="street">Street</Label>
                   <Input 
-                    id="address" 
-                    placeholder="Enter full address" 
-                    {...register('address', { required: "Address is required" })}
+                    id="street" 
+                    placeholder="123 Main St" 
+                    {...register('street', { required: "Street is required" })}
                   />
-                  {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address.message}</p>}
+                  {errors.street && <p className="text-red-500 text-sm mt-1">{errors.street.message}</p>}
                 </div>
-                
+                <div>
+                  <Label htmlFor="suburb">Suburb</Label>
+                  <Input 
+                    id="suburb" 
+                    placeholder="Suburb" 
+                    {...register('suburb', { required: "Suburb is required" })}
+                  />
+                  {errors.suburb && <p className="text-red-500 text-sm mt-1">{errors.suburb.message}</p>}
+                </div>
+                <div>
+                  <Label htmlFor="state">State</Label>
+                  <Input 
+                    id="state" 
+                    placeholder="State" 
+                    {...register('state', { required: "State is required" })}
+                  />
+                  {errors.state && <p className="text-red-500 text-sm mt-1">{errors.state.message}</p>}
+                </div>
+                <div>
+                  <Label htmlFor="postcode">Postcode</Label>
+                  <Input 
+                    id="postcode" 
+                    placeholder="Postcode" 
+                    {...register('postcode', { required: "Postcode is required" })}
+                  />
+                  {errors.postcode && <p className="text-red-500 text-sm mt-1">{errors.postcode.message}</p>}
+                </div>
                 <div>
                   <Label htmlFor="price">Price ($)</Label>
                   <Input 
                     id="price" 
                     type="number" 
-                    placeholder="500000" 
+                    placeholder="500 000" 
                     {...register('price', { 
                       required: "Price is required",
                       valueAsNumber: true,
@@ -161,7 +196,6 @@ const AddProperty = () => {
                   />
                   {errors.price && <p className="text-red-500 text-sm mt-1">{errors.price.message}</p>}
                 </div>
-                
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <Label htmlFor="beds">Bedrooms</Label>
@@ -210,33 +244,33 @@ const AddProperty = () => {
                 </div>
                 
                 <div>
-                  <Label htmlFor="growth_rate">Growth Rate (% per year)</Label>
+                  <Label htmlFor="growthRate">Growth Rate (% per year)</Label>
                   <Input 
-                    id="growth_rate" 
+                    id="growthRate" 
                     type="number" 
                     step="0.1" 
                     placeholder="3.5" 
-                    {...register('growth_rate', { 
+                    {...register('growthRate', { 
                       valueAsNumber: true,
                       min: { value: 0, message: "Must be positive" }
                     })}
                   />
-                  {errors.growth_rate && <p className="text-red-500 text-sm mt-1">{errors.growth_rate.message}</p>}
+                  {errors.growthRate && <p className="text-red-500 text-sm mt-1">{errors.growthRate.message}</p>}
                 </div>
                 
                 <div>
-                  <Label htmlFor="rental_yield">Rental Yield (%)</Label>
+                  <Label htmlFor="rentalYield">Rental Yield (%)</Label>
                   <Input 
-                    id="rental_yield" 
+                    id="rentalYield" 
                     type="number" 
                     step="0.1" 
                     placeholder="4.2" 
-                    {...register('rental_yield', { 
+                    {...register('rentalYield', { 
                       valueAsNumber: true,
                       min: { value: 0, message: "Must be positive" }
                     })}
                   />
-                  {errors.rental_yield && <p className="text-red-500 text-sm mt-1">{errors.rental_yield.message}</p>}
+                  {errors.rentalYield && <p className="text-red-500 text-sm mt-1">{errors.rentalYield.message}</p>}
                 </div>
                 
                 <div className="md:col-span-2">

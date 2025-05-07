@@ -27,10 +27,13 @@ interface Property {
   name: string;
   address: string;
   price: number;
-  image_url: string;
+  imageUrl: string;
   beds: number;
   baths: number;
   area: number;
+  growthRate: number;
+  rentalYield: number;
+  features: string[];
 }
 
 const AssignProperty = () => {
@@ -112,12 +115,15 @@ const AssignProperty = () => {
         setProperties((data || []).map((property) => ({
           id: property.id?.toString() || '',
           name: property.name || '',
-          address: property.address || '',
-          price: property.currentValue || 0,
-          image_url: '',
-          beds: 0,
-          baths: 0,
-          area: 0,
+          address: [property.street, property.suburb, property.state, property.postcode].filter(Boolean).join(', '),
+          price: property.price ? Number(property.price) : 0,
+          imageUrl: property.imageUrl || '',
+          beds: property.beds || 0,
+          baths: property.baths || 0,
+          area: property.area || 0,
+          growthRate: property.growthRate ? Number(property.growthRate) : 0,
+          rentalYield: property.rentalYield ? Number(property.rentalYield) : 0,
+          features: property.features || [],
         })));
       } catch (error) {
         toast({

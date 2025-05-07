@@ -8,6 +8,7 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -21,11 +22,11 @@ public class Portfolio {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "profile_id", nullable = false)
+    @JoinColumn(name = "profile_id", nullable = true)
     private Profile profile;
 
-    @OneToMany(mappedBy = "portfolio", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Property> properties = new ArrayList<>();
+    @OneToMany(mappedBy = "portfolio")
+    private Set<Property> properties = new java.util.HashSet<>();
 
     @Column(name = "total_value", precision = 19, scale = 2)
     private BigDecimal totalValue = BigDecimal.ZERO;

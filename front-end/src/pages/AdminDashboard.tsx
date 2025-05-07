@@ -5,7 +5,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, UserCog, Home, Plus, Link as LinkIcon, FileQuestion, UserRound, DollarSign, Package } from 'lucide-react';
+import { Loader2, UserCog, Home, Plus, Link as LinkIcon, FileQuestion, UserRound, DollarSign, Package, LineChart } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
 import apiService from '@/services/api';
@@ -28,6 +28,10 @@ type Property = {
   beds: number;
   baths: number;
   area: number;
+  growthRate: number;
+  rentalYield: number;
+  imageUrl: string;
+  features: string[];
 };
 
 const AdminDashboard = () => {
@@ -92,11 +96,15 @@ const AdminDashboard = () => {
           (data || []).map((property) => ({
             id: property.id?.toString() || '',
             name: property.name || '',
-            address: property.address || '',
-            price: property.currentValue || 0,
-            beds: (property as any).beds || 0,
-            baths: (property as any).baths || 0,
-            area: (property as any).area || 0,
+            address: [property.street, property.suburb, property.state, property.postcode].filter(Boolean).join(', '),
+            price: property.price ? Number(property.price) : 0,
+            beds: property.beds || 0,
+            baths: property.baths || 0,
+            area: property.area || 0,
+            growthRate: property.growthRate ? Number(property.growthRate) : 0,
+            rentalYield: property.rentalYield ? Number(property.rentalYield) : 0,
+            imageUrl: property.imageUrl || '',
+            features: property.features || [],
           }))
         );
       } catch (error) {
@@ -172,7 +180,13 @@ const AdminDashboard = () => {
         <div className="container-custom">
           <div className="flex justify-between items-center mb-6">
             <h1 className="heading-lg">Admin Dashboard</h1>
-            <Button variant="outline" onClick={signOut}>Log Out</Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => navigate('/modeling')}>
+                <LineChart className="w-4 h-4 mr-2" />
+                Modeling Dashboard
+              </Button>
+              <Button variant="outline" onClick={signOut}>Log Out</Button>
+            </div>
           </div>
           
           {/* Admin Profile */}
@@ -300,16 +314,8 @@ const AdminDashboard = () => {
                               className="bg-theme-warm hover:bg-theme-warm/90"
                               onClick={() => navigate(`/admin/client/${client.id}`)}
                             >
-                              View Client
-                            </Button>
-                            <Button 
-                              size="sm"
-                              variant="outline"
-                              className="bg-theme-blue/5 border-theme-blue text-theme-blue hover:bg-theme-blue/10 hover:text-theme-blue"
-                              onClick={() => navigate(`/admin-client-form/${client.id}`)}
-                            >
                               <UserCog className="mr-1 h-4 w-4" />
-                              Details
+                              View Details
                             </Button>
                           </TableCell>
                         </TableRow>

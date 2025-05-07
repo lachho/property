@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Data
@@ -16,7 +17,7 @@ import java.util.UUID;
 public class PortfolioDTO {
     private UUID id;
     private UUID userId;
-    private List<PropertyDTO> properties;
+    private Set<PropertyDTO> properties;
     private BigDecimal totalValue;
     private BigDecimal totalDebt;
     private BigDecimal totalEquity;

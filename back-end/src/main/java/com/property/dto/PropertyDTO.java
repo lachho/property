@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.util.UUID;
+import java.util.Set;
 
 @Data
 @Builder
@@ -14,19 +15,18 @@ import java.util.UUID;
 @AllArgsConstructor
 public class PropertyDTO {
     private UUID id;
-    private String address;
-    private String city;
+    private String name;
+    private String street;
+    private String suburb;
     private String state;
-    private String zipCode;
-    private BigDecimal purchasePrice;
-    private BigDecimal currentValue;
-    private BigDecimal mortgageAmount;
-    private BigDecimal monthlyRent;
-    private BigDecimal monthlyExpenses;
-    private BigDecimal monthlyCashFlow;
-    private BigDecimal annualReturn;
-    private Integer yearBuilt;
-    private Integer bedrooms;
-    private Integer bathrooms;
-    private BigDecimal squareFootage;
+    private String postcode;
+    private String description;
+    private BigDecimal price;
+    private Integer beds;
+    private Integer baths;
+    private Integer area;
+    private BigDecimal growthRate;
+    private BigDecimal rentalYield;
+    private String imageUrl;
+    private Set<String> features;
 } 

@@ -22,15 +22,16 @@ type Property = {
   beds: number;
   baths: number;
   area: number;
-  image_url: string | null;
+  imageUrl: string | null;
   features: string[] | null;
-  growth_rate: number | null;
-  rental_yield: number | null;
-  purchasePrice: number;
-  currentValue: number;
-  deposit: number;
-  userId: string;
-  status: string;
+  growthRate: number | null;
+  rentalYield: number | null;
+  // Future fields (not yet in backend, but planned)
+  purchasePrice?: number;
+  currentValue?: number;
+  deposit?: number;
+  userId?: string;
+  status?: string;
 };
 
 const AdminPropertyEdit = () => {
@@ -51,15 +52,10 @@ const AdminPropertyEdit = () => {
       beds: 0,
       baths: 0,
       area: 0,
-      image_url: '',
+      imageUrl: '',
       features: [],
-      growth_rate: 0,
-      rental_yield: 0,
-      purchasePrice: 0,
-      currentValue: 0,
-      deposit: 0,
-      userId: '',
-      status: '',
+      growthRate: 0,
+      rentalYield: 0,
     }
   });
 
@@ -75,25 +71,26 @@ const AdminPropertyEdit = () => {
     const fetchPropertyData = async () => {
       if (!user) return;
       try {
-        const { data } = await apiService.getProperty(Number(propertyId));
+        const { data } = await apiService.getProperty(propertyId);
         setProperty({
           id: data.id?.toString() || '',
           name: data.name || '',
-          address: data.address || '',
+          address: [data.street, data.suburb, data.state, data.postcode].filter(Boolean).join(', '),
           description: data.description || '',
-          price: data.currentValue || 0,
-          beds: (data as any).beds || 0,
-          baths: (data as any).baths || 0,
-          area: (data as any).area || 0,
-          image_url: (data as any).image_url || '',
-          features: (data as any).features || [],
-          growth_rate: (data as any).growth_rate || 0,
-          rental_yield: (data as any).rental_yield || 0,
-          purchasePrice: data.purchasePrice || 0,
-          currentValue: data.currentValue || 0,
-          deposit: data.deposit || 0,
-          userId: data.userId?.toString() || '',
-          status: data.status || '',
+          price: data.price ? Number(data.price) : 0,
+          beds: data.beds || 0,
+          baths: data.baths || 0,
+          area: data.area || 0,
+          imageUrl: data.imageUrl || '',
+          features: data.features || [],
+          growthRate: data.growthRate ? Number(data.growthRate) : 0,
+          rentalYield: data.rentalYield ? Number(data.rentalYield) : 0,
+          // Future fields (fallbacks for now)
+          purchasePrice: (data as any).purchasePrice ?? 0,
+          currentValue: (data as any).currentValue ?? 0,
+          deposit: (data as any).deposit ?? 0,
+          userId: (data as any).userId ? (data as any).userId.toString() : '',
+          status: (data as any).status ?? '',
         });
       } catch (error) {
         console.error('Unexpected error fetching property:', error);
@@ -114,32 +111,39 @@ const AdminPropertyEdit = () => {
   const handleSave = async (data: Property) => {
     setIsSaving(true);
     try {
-      await apiService.updateProperty(Number(propertyId), {
+      // Only send future fields if present
+      const updatePayload: any = {
         ...data,
-        id: data.id ? Number(data.id) : 0,
-        userId: data.userId ? Number(data.userId) : undefined,
-      });
+        id: data.id ? data.id : '',
+      };
+      if (data.purchasePrice !== undefined) updatePayload.purchasePrice = data.purchasePrice;
+      if (data.currentValue !== undefined) updatePayload.currentValue = data.currentValue;
+      if (data.deposit !== undefined) updatePayload.deposit = data.deposit;
+      if (data.userId !== undefined) updatePayload.userId = data.userId;
+      if (data.status !== undefined) updatePayload.status = data.status;
+      await apiService.updateProperty(propertyId, updatePayload);
       setIsEditing(false);
       // Refresh property data
-      const { data: updatedData } = await apiService.getProperty(Number(propertyId));
+      const { data: updatedData } = await apiService.getProperty(propertyId);
       setProperty({
         id: updatedData.id?.toString() || '',
         name: updatedData.name || '',
-        address: updatedData.address || '',
+        address: [updatedData.street, updatedData.suburb, updatedData.state, updatedData.postcode].filter(Boolean).join(', '),
         description: updatedData.description || '',
-        price: updatedData.currentValue || 0,
-        beds: (updatedData as any).beds || 0,
-        baths: (updatedData as any).baths || 0,
-        area: (updatedData as any).area || 0,
-        image_url: (updatedData as any).image_url || '',
-        features: (updatedData as any).features || [],
-        growth_rate: (updatedData as any).growth_rate || 0,
-        rental_yield: (updatedData as any).rental_yield || 0,
-        purchasePrice: updatedData.purchasePrice || 0,
-        currentValue: updatedData.currentValue || 0,
-        deposit: updatedData.deposit || 0,
-        userId: updatedData.userId?.toString() || '',
-        status: updatedData.status || '',
+        price: updatedData.price ? Number(updatedData.price) : 0,
+        beds: updatedData.beds || 0,
+        baths: updatedData.baths || 0,
+        area: updatedData.area || 0,
+        imageUrl: updatedData.imageUrl || '',
+        features: updatedData.features || [],
+        growthRate: updatedData.growthRate ? Number(updatedData.growthRate) : 0,
+        rentalYield: updatedData.rentalYield ? Number(updatedData.rentalYield) : 0,
+        // Future fields (fallbacks for now)
+        purchasePrice: (updatedData as any).purchasePrice ?? 0,
+        currentValue: (updatedData as any).currentValue ?? 0,
+        deposit: (updatedData as any).deposit ?? 0,
+        userId: (updatedData as any).userId ? (updatedData as any).userId.toString() : '',
+        status: (updatedData as any).status ?? '',
       });
       toast({
         title: "Success",
@@ -328,7 +332,7 @@ const AdminPropertyEdit = () => {
                       
                       <FormField
                         control={form.control}
-                        name="growth_rate"
+                        name="growthRate"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Growth Rate (%)</FormLabel>
@@ -347,7 +351,7 @@ const AdminPropertyEdit = () => {
                       
                       <FormField
                         control={form.control}
-                        name="rental_yield"
+                        name="rentalYield"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Rental Yield (%)</FormLabel>
@@ -366,7 +370,7 @@ const AdminPropertyEdit = () => {
                       
                       <FormField
                         control={form.control}
-                        name="image_url"
+                        name="imageUrl"
                         render={({ field }) => (
                           <FormItem className="col-span-2">
                             <FormLabel>Image URL</FormLabel>
@@ -401,10 +405,10 @@ const AdminPropertyEdit = () => {
                 </Form>
               ) : (
                 <div className="grid grid-cols-1 gap-6">
-                  {property.image_url && (
+                  {property.imageUrl && (
                     <div className="w-full aspect-video bg-gray-100 rounded-lg overflow-hidden">
                       <img 
-                        src={property.image_url} 
+                        src={property.imageUrl} 
                         alt={property.name} 
                         className="w-full h-full object-cover"
                       />
@@ -435,12 +439,12 @@ const AdminPropertyEdit = () => {
                     
                     <div>
                       <h4 className="font-medium mb-2">Growth Rate</h4>
-                      <p>{property.growth_rate !== null ? `${property.growth_rate}%` : 'Not available'}</p>
+                      <p>{property.growthRate !== null ? `${property.growthRate}%` : 'Not available'}</p>
                     </div>
                     
                     <div>
                       <h4 className="font-medium mb-2">Rental Yield</h4>
-                      <p>{property.rental_yield !== null ? `${property.rental_yield}%` : 'Not available'}</p>
+                      <p>{property.rentalYield !== null ? `${property.rentalYield}%` : 'Not available'}</p>
                     </div>
                     
                     {property.features && property.features.length > 0 && (

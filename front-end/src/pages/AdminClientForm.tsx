@@ -29,13 +29,7 @@ const AdminClientForm = () => {
       setIsFormLoading(true);
       apiService.getProfileById(clientId)
         .then(({ data }) => {
-          if (data) {
-            // setValue('firstName', data.firstName || '');
-            // setValue('lastName', data.lastName || '');
-            // setValue('email', data.email || '');
-            // setValue('phone', data.phone || '');
-            // If you need to set form values, do it in ClientDetailsForm
-          }
+          // No need to set clientData here
         })
         .catch(() => {
           toast({

@@ -59,9 +59,19 @@ export interface Liability {
     description?: string;
 }
 
+export interface Portfolio {
+    id: string;
+    userId: string;
+    properties: Property[];
+    totalValue: number;
+    totalDebt: number;
+    totalEquity: number;
+    monthlyCashFlow: number;
+    annualReturn: number;
+}
+
 export interface Profile {
-    id?: number;
-    userId?: number;
+    id?: string;
     firstName: string;
     lastName: string;
     dateOfBirth?: Date | string | null;
@@ -107,31 +117,39 @@ export interface Profile {
     retirementPassiveIncomeGoal: number;
     desiredRetirementAge: number;
     
-    // From original interface
-    income: number;
-    additionalIncome: number;
-    additionalIncomeSource: string;
-    savings: number;
-    assets: Asset[];
-    liabilities: Liability[];
+    // Other fields
+    existingLoans: number;
+    maritalStatus: string;
+    
+    // Related entities
+    assets?: Asset[];
+    liabilities?: Liability[];
+    portfolios?: Portfolio[];
 }
 
 export interface ProfileDetailsDto {
     profile: Profile;
     assets: Asset[];
     liabilities: Liability[];
+    portfolios: Portfolio[];
 }
 
 export interface Property {
     id?: number;
     name: string;
-    address: string;
-    purchasePrice: number;
-    currentValue: number;
-    deposit: number;
+    street: string;
+    suburb: string;
+    state: string;
+    postcode: string;
+    price: number;
+    beds: number;
+    baths: number;
+    area: number;
     description: string;
-    userId?: number;
-    status?: string;
+    growthRate: number;
+    rentalYield: number;
+    imageUrl?: string;
+    features?: string[];
 }
 
 // Create axios instance
@@ -381,7 +399,7 @@ const apiService = {
         return api.get('/properties');
     },
     
-    getProperty: (id: number): Promise<AxiosResponse<Property>> => {
+    getProperty: (id: string): Promise<AxiosResponse<Property>> => {
         return api.get(`/properties/${id}`);
     },
     
@@ -389,7 +407,7 @@ const apiService = {
         return api.post('/properties', property);
     },
     
-    updateProperty: (id: number, property: Property): Promise<AxiosResponse<Property>> => {
+    updateProperty: (id: string, property: Property): Promise<AxiosResponse<Property>> => {
         return api.put(`/properties/${id}`, property);
     },
     
@@ -398,16 +416,36 @@ const apiService = {
     },
 
     // Profile details endpoint (combined profile, assets, liabilities)
-    getProfileDetails: (clientId: string): Promise<AxiosResponse<ProfileDetailsDto>> => {
-        return api.get(`/profile/details/${clientId}`);
+    getProfileDetails: async (clientId: string): Promise<AxiosResponse<ProfileDetailsDto>> => {
+        try {
+            const response = await api.get(`/profiles/${clientId}/details`);
+            // Validate response data
+            if (!response.data) {
+                throw new Error('No data received from API');
+            }
+            if (!response.data.profile) {
+                throw new Error('Profile data is missing from API response');
+            }
+            return response;
+        } catch (error) {
+            console.error('API Error in getProfileDetails:', error);
+            if (error instanceof Error) {
+                console.error('Error details:', {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack
+                });
+            }
+            throw error;
+        }
     },
     
     updateProfileDetails: (clientId: string, data: ProfileDetailsDto): Promise<AxiosResponse<ProfileDetailsDto>> => {
-        return api.put(`/profile/details/${clientId}`, data);
+        return api.put(`/profiles/${clientId}/details`, data);
     },
     
     createProfileDetails: (data: ProfileDetailsDto): Promise<AxiosResponse<ProfileDetailsDto>> => {
-        return api.post('/profile/details', data);
+        return api.post('/profiles/details', data);
     },
     
     // Mortgage leads endpoint 
@@ -481,6 +519,11 @@ const apiService = {
     // Remove a property from a user's saved list
     removeSavedProperty: (userId: string, propertyId: string): Promise<AxiosResponse<any>> => {
         return api.delete(`/saved-properties/remove`, { params: { userId, propertyId } });
+    },
+
+    // Fetch a user's portfolio (summary, properties, etc)
+    getPortfolio: (userId: string): Promise<AxiosResponse<any>> => {
+        return api.get(`/portfolio/${userId}`);
     }
 };
 

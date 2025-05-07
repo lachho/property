@@ -1,8 +1,5 @@
 package com.property.dto;
 
-import com.property.entity.Asset;
-import com.property.entity.Liability;
-import com.property.entity.Profile;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -15,7 +12,8 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ProfileDetailsDto {
-    private Profile profile;
-    private List<Asset> assets;
-    private List<Liability> liabilities;
+    private ProfileDto profile;
+    private List<AssetDTO> assets;
+    private List<LiabilityDTO> liabilities;
+    private List<PortfolioDTO> portfolios;
 } 

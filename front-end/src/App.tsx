@@ -12,13 +12,13 @@ import Auth from "./pages/Auth";
 import AdminDashboard from "./pages/AdminDashboard";
 import ClientDashboard from "./pages/ClientDashboard";
 import PropertyDetails from "./pages/PropertyDetails";
-import AdminClientView from "./pages/AdminClientView";
 import AdminPropertyEdit from "./pages/AdminPropertyEdit";
 import AddProperty from "./pages/AddProperty";
 import AssignProperty from "./pages/AssignProperty";
 import NotFound from "./pages/NotFound";
 import AdminClientForm from "./pages/AdminClientForm";
 import HookTester from "./components/HookTester";
+import ModelingDashboard from "./pages/ModelingDashboard";
 
 const queryClient = new QueryClient();
 
@@ -37,15 +37,15 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/admin-dashboard" element={<AdminDashboard />} />
             <Route path="/client-dashboard" element={<ClientDashboard />} />
+            <Route path="/modeling" element={<ModelingDashboard />} />
             <Route path="/property/:propertyId" element={<PropertyDetails />} />
             
             {/* Admin routes */}
-            <Route path="/admin/client/:clientId" element={<AdminClientView />} />
+            <Route path="/admin-client" element={<AdminClientForm />} />
+            <Route path="/admin/client/:clientId" element={<AdminClientForm />} />
             <Route path="/admin/property/:propertyId" element={<AdminPropertyEdit />} />
             <Route path="/add-property" element={<AddProperty />} />
             <Route path="/assign-property" element={<AssignProperty />} />
-            <Route path="/admin-client-form" element={<AdminClientForm />} />
-            <Route path="/admin-client-form/:clientId" element={<AdminClientForm />} />
             <Route path="/hooks-test" element={<HookTester />} />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

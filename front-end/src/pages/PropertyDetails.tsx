@@ -56,8 +56,8 @@ const PropertyDetails = () => {
       if (!propertyId || !user) return;
       
       try {
-        // Fetch property details
-        const { data: propertyData } = await apiService.getProperty(Number(propertyId));
+        // Fetch property details (use string ID for UUID)
+        const { data: propertyData } = await apiService.getProperty(propertyId);
         
         if (!propertyData) {
           toast({
@@ -65,15 +65,17 @@ const PropertyDetails = () => {
             description: "The property you are looking for does not exist.",
             variant: "destructive"
           });
-          navigate('/client-dashboard');
+          navigate(user.role === 'ADMIN' ? '/admin-dashboard' : '/client-dashboard');
           return;
         }
         
         setProperty(propertyData);
         
-        // Check if property is saved by user
-        const { data: savedData } = await apiService.isPropertySaved(user.id, propertyId);
-        setIsSaved(!!savedData);
+        // Check if property is saved by user (only for clients)
+        if (user.role !== 'ADMIN') {
+          const { data: savedData } = await apiService.isPropertySaved(user.id, propertyId);
+          setIsSaved(!!savedData);
+        }
       } catch (error) {
         console.error('Error fetching property details:', error);
         toast({
@@ -124,14 +126,14 @@ const PropertyDetails = () => {
     }
   };
 
-  if (isLoading || isPropertyLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />
         <main className="flex-grow flex items-center justify-center">
           <div className="flex flex-col items-center justify-center gap-4">
             <Loader2 className="h-8 w-8 animate-spin text-theme-blue" />
-            <p className="text-lg">Loading property details...</p>
+            <p className="text-lg">Loading...</p>
           </div>
         </main>
         <Footer />
@@ -152,7 +154,7 @@ const PropertyDetails = () => {
             <div className="text-center py-12">
               <h2 className="text-2xl font-semibold mb-2">Property Not Found</h2>
               <p className="text-gray-500 mb-6">The property you are looking for does not exist or has been removed.</p>
-              <Button onClick={() => navigate('/client-dashboard')}>
+              <Button onClick={() => navigate(user.role === 'ADMIN' ? '/admin-dashboard' : '/client-dashboard')}>
                 Return to Dashboard
               </Button>
             </div>
@@ -172,7 +174,7 @@ const PropertyDetails = () => {
             <Button 
               variant="outline" 
               className="mb-4"
-              onClick={() => navigate('/client-dashboard')}
+              onClick={() => navigate(user.role === 'ADMIN' ? '/admin-dashboard' : '/client-dashboard')}
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Dashboard
@@ -201,9 +203,9 @@ const PropertyDetails = () => {
             <div className="lg:col-span-2">
               <Card className="overflow-hidden">
                 <div className="h-80 bg-gray-200 relative">
-                  {property.image_url ? (
+                  {property.imageUrl ? (
                     <img 
-                      src={property.image_url} 
+                      src={property.imageUrl} 
                       alt={property.name} 
                       className="w-full h-full object-cover"
                     />
@@ -240,16 +242,16 @@ const PropertyDetails = () => {
                       <p className="text-sm text-gray-500">Area</p>
                       <p className="font-semibold">{property.area} m²</p>
                     </div>
-                    {property.growth_rate && (
+                    {property.growthRate && (
                       <div>
                         <p className="text-sm text-gray-500">Growth Rate</p>
-                        <p className="font-semibold text-green-600">{property.growth_rate}%</p>
+                        <p className="font-semibold text-green-600">{property.growthRate}%</p>
                       </div>
                     )}
-                    {property.rental_yield && (
+                    {property.rentalYield && (
                       <div>
                         <p className="text-sm text-gray-500">Rental Yield</p>
-                        <p className="font-semibold">{property.rental_yield}%</p>
+                        <p className="font-semibold">{property.rentalYield}%</p>
                       </div>
                     )}
                   </div>
@@ -386,20 +388,20 @@ const PropertyDetails = () => {
                     <TableCell>${Math.round(property.price * 0.004).toLocaleString()}</TableCell>
                     <TableCell>Based on 3.5% interest rate, 30-year term</TableCell>
                   </TableRow>
-                  {property.rental_yield && (
+                  {property.rentalYield && (
                     <TableRow>
                       <TableCell className="font-medium">Annual Rental Income</TableCell>
-                      <TableCell>${Math.round(property.price * (property.rental_yield / 100)).toLocaleString()}</TableCell>
-                      <TableCell>Based on {property.rental_yield}% rental yield</TableCell>
+                      <TableCell>${Math.round(property.price * (property.rentalYield / 100)).toLocaleString()}</TableCell>
+                      <TableCell>Based on {property.rentalYield}% rental yield</TableCell>
                     </TableRow>
                   )}
-                  {property.growth_rate && (
+                  {property.growthRate && (
                     <TableRow>
                       <TableCell className="font-medium">5-Year Projected Value</TableCell>
                       <TableCell>
-                        ${Math.round(property.price * Math.pow(1 + (property.growth_rate / 100), 5)).toLocaleString()}
+                        ${Math.round(property.price * Math.pow(1 + (property.growthRate / 100), 5)).toLocaleString()}
                       </TableCell>
-                      <TableCell>Based on {property.growth_rate}% annual growth</TableCell>
+                      <TableCell>Based on {property.growthRate}% annual growth</TableCell>
                     </TableRow>
                   )}
                 </TableBody>

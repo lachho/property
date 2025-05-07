@@ -11,6 +11,10 @@ import com.property.repository.ProfileRepository;
 import com.property.service.AssetService;
 import com.property.service.LiabilityService;
 import com.property.service.ProfileService;
+import com.property.dto.AssetDTO;
+import com.property.dto.LiabilityDTO;
+import com.property.dto.PortfolioDTO;
+import com.property.service.PortfolioService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -42,8 +46,11 @@ public class ProfileServiceImpl implements ProfileService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private PortfolioService portfolioService;
+
     private Profile getProfileEntity(UUID id) {
-        return profileRepository.findById(id)
+        return profileRepository.findByIdWithPortfolios(id)
                 .orElseThrow(() -> new RuntimeException("Profile not found with id: " + id));
     }
 
@@ -74,10 +81,15 @@ public class ProfileServiceImpl implements ProfileService {
     @Override
     public ProfileDetailsDto getProfileDetails(UUID id) {
         Profile profile = getProfileEntity(id);
+        List<AssetDTO> assetDTOs = assetRepository.findByProfileId(id).stream().map(this::toAssetDTO).toList();
+        List<LiabilityDTO> liabilityDTOs = liabilityRepository.findByProfileId(id).stream().map(this::toLiabilityDTO).toList();
+        List<PortfolioDTO> portfolioDTOs = profile.getPortfolios() != null ?
+            profile.getPortfolios().stream().map(this::toPortfolioDTO).toList() : List.of();
         return ProfileDetailsDto.builder()
-                .profile(profile)
-                .assets(assetRepository.findByProfileId(id))
-                .liabilities(liabilityRepository.findByProfileId(id))
+                .profile(toDto(profile))
+                .assets(assetDTOs)
+                .liabilities(liabilityDTOs)
+                .portfolios(portfolioDTOs)
                 .build();
     }
     
@@ -86,19 +98,19 @@ public class ProfileServiceImpl implements ProfileService {
     public ProfileDetailsDto updateProfileDetails(UUID id, ProfileDetailsDto profileDetails) {
         // Update profile
         Profile existingProfile = getProfileEntity(id);
-        updateProfileFields(existingProfile, profileDetails.getProfile());
+        updateProfileFields(existingProfile, toProfileEntity(profileDetails.getProfile()));
         profileRepository.save(existingProfile);
         
         // Delete and recreate assets
         assetRepository.deleteByProfileId(id);
         if (profileDetails.getAssets() != null && !profileDetails.getAssets().isEmpty()) {
-            profileDetails.getAssets().forEach(asset -> assetService.createAsset(id, asset));
+            profileDetails.getAssets().forEach(assetDto -> assetService.createAsset(id, toAssetEntity(assetDto)));
         }
         
         // Delete and recreate liabilities
         liabilityRepository.deleteByProfileId(id);
         if (profileDetails.getLiabilities() != null && !profileDetails.getLiabilities().isEmpty()) {
-            profileDetails.getLiabilities().forEach(liability -> liabilityService.createLiability(id, liability));
+            profileDetails.getLiabilities().forEach(liabilityDto -> liabilityService.createLiability(id, toLiabilityEntity(liabilityDto)));
         }
         
         // Return updated details
@@ -224,7 +236,179 @@ public class ProfileServiceImpl implements ProfileService {
                 .onProbation(profile.getOnProbation())
                 .maritalStatus(profile.getMaritalStatus())
                 .dependants(profile.getDependants())
-                // Add other fields as needed
+                .grossIncome(profile.getGrossIncome())
+                .nonTaxableIncome(profile.getNonTaxableIncome())
+                // Partner fields
+                .assessWithPartner(profile.getAssessWithPartner())
+                .partnerFirstName(profile.getPartnerFirstName())
+                .partnerLastName(profile.getPartnerLastName())
+                .partnerDob(profile.getPartnerDob() != null ? profile.getPartnerDob().toString() : null)
+                .partnerMobile(profile.getPartnerMobile())
+                .partnerAddress(profile.getPartnerAddress())
+                .partnerEmail(profile.getPartnerEmail())
+                .partnerOccupation(profile.getPartnerOccupation())
+                .partnerEmployer(profile.getPartnerEmployer())
+                .partnerEmploymentLength(profile.getPartnerEmploymentLength())
+                .partnerEmploymentType(profile.getPartnerEmploymentType())
+                .partnerOnProbation(profile.getPartnerOnProbation())
+                .partnerIncome(profile.getPartnerIncome())
+                .partnerNonTaxableIncome(profile.getPartnerNonTaxableIncome())
+                // Expense fields
+                .isRenting(profile.getIsRenting())
+                .rentPerWeek(profile.getRentPerWeek())
+                .monthlyLivingExpenses(profile.getMonthlyLivingExpenses())
+                .residenceHistory(profile.getResidenceHistory())
+                .dependantsAgeRanges(profile.getDependantsAgeRanges())
+                // Retirement fields
+                .retirementPassiveIncomeGoal(profile.getRetirementPassiveIncomeGoal())
+                .desiredRetirementAge(profile.getDesiredRetirementAge())
+                // Other fields
+                .existingLoans(profile.getExistingLoans())
                 .build();
+    }
+
+    private AssetDTO toAssetDTO(com.property.entity.Asset asset) {
+        return AssetDTO.builder()
+                .id(asset.getId())
+                .assetType(asset.getAssetType())
+                .currentValue(asset.getCurrentValue())
+                .originalPrice(asset.getOriginalPrice())
+                .yearPurchased(asset.getYearPurchased())
+                .ownershipPercentage(asset.getOwnershipPercentage())
+                .incomeAmount(asset.getIncomeAmount())
+                .incomeFrequency(asset.getIncomeFrequency())
+                .description(asset.getDescription())
+                .build();
+    }
+
+    private LiabilityDTO toLiabilityDTO(com.property.entity.Liability liability) {
+        return LiabilityDTO.builder()
+                .id(liability.getId())
+                .liabilityType(liability.getLiabilityType())
+                .isPrimaryResidence(liability.getIsPrimaryResidence())
+                .loanBalance(liability.getLoanBalance())
+                .limitAmount(liability.getLimitAmount())
+                .lenderType(liability.getLenderType())
+                .interestRate(liability.getInterestRate())
+                .termType(liability.getTermType())
+                .repaymentAmount(liability.getRepaymentAmount())
+                .repaymentFrequency(liability.getRepaymentFrequency())
+                .loanType(liability.getLoanType())
+                .description(liability.getDescription())
+                .build();
+    }
+
+    private PortfolioDTO toPortfolioDTO(com.property.entity.Portfolio portfolio) {
+        return PortfolioDTO.builder()
+                .id(portfolio.getId())
+                .userId(portfolio.getProfile() != null ? portfolio.getProfile().getId() : null)
+                .properties(portfolio.getProperties() != null ?
+                    portfolio.getProperties().stream().map(property -> {
+                        return com.property.dto.PropertyDTO.builder()
+                            .id(property.getId())
+                            .name(property.getName())
+                            .street(property.getStreet())
+                            .suburb(property.getSuburb())
+                            .state(property.getState())
+                            .postcode(property.getPostcode())
+                            .description(property.getDescription())
+                            .price(property.getPrice())
+                            .beds(property.getBeds())
+                            .baths(property.getBaths())
+                            .area(property.getArea())
+                            .growthRate(property.getGrowthRate())
+                            .rentalYield(property.getRentalYield())
+                            .imageUrl(property.getImageUrl())
+                            .features(property.getFeatures())
+                            .build();
+                    }).collect(java.util.stream.Collectors.toSet()) : java.util.Collections.emptySet())
+                .totalValue(portfolio.getTotalValue())
+                .totalDebt(portfolio.getTotalDebt())
+                .totalEquity(portfolio.getTotalEquity())
+                .monthlyCashFlow(portfolio.getMonthlyCashFlow())
+                .annualReturn(portfolio.getAnnualReturn())
+                .build();
+    }
+
+    private Profile toProfileEntity(ProfileDto dto) {
+        if (dto == null) return null;
+        Profile profile = new Profile();
+        profile.setId(dto.getId());
+        profile.setFirstName(dto.getFirstName());
+        profile.setLastName(dto.getLastName());
+        profile.setEmail(dto.getEmail());
+        profile.setPhone(dto.getPhone());
+        profile.setRole(dto.getRole() != null ? com.property.entity.UserRole.valueOf(dto.getRole()) : null);
+        profile.setAddress(dto.getAddress());
+        profile.setDateOfBirth(dto.getDateOfBirth() != null ? java.time.LocalDate.parse(dto.getDateOfBirth()) : null);
+        profile.setOccupation(dto.getOccupation());
+        profile.setEmployer(dto.getEmployer());
+        profile.setEmploymentLength(dto.getEmploymentLength());
+        profile.setEmploymentType(dto.getEmploymentType());
+        profile.setOnProbation(dto.getOnProbation());
+        profile.setMaritalStatus(dto.getMaritalStatus());
+        profile.setDependants(dto.getDependants());
+        profile.setGrossIncome(dto.getGrossIncome());
+        profile.setNonTaxableIncome(dto.getNonTaxableIncome());
+        // Partner fields
+        profile.setAssessWithPartner(dto.getAssessWithPartner());
+        profile.setPartnerFirstName(dto.getPartnerFirstName());
+        profile.setPartnerLastName(dto.getPartnerLastName());
+        profile.setPartnerDob(dto.getPartnerDob() != null ? java.time.LocalDate.parse(dto.getPartnerDob()) : null);
+        profile.setPartnerMobile(dto.getPartnerMobile());
+        profile.setPartnerAddress(dto.getPartnerAddress());
+        profile.setPartnerEmail(dto.getPartnerEmail());
+        profile.setPartnerOccupation(dto.getPartnerOccupation());
+        profile.setPartnerEmployer(dto.getPartnerEmployer());
+        profile.setPartnerEmploymentLength(dto.getPartnerEmploymentLength());
+        profile.setPartnerEmploymentType(dto.getPartnerEmploymentType());
+        profile.setPartnerOnProbation(dto.getPartnerOnProbation());
+        profile.setPartnerIncome(dto.getPartnerIncome());
+        profile.setPartnerNonTaxableIncome(dto.getPartnerNonTaxableIncome());
+        // Expense fields
+        profile.setIsRenting(dto.getIsRenting());
+        profile.setRentPerWeek(dto.getRentPerWeek());
+        profile.setMonthlyLivingExpenses(dto.getMonthlyLivingExpenses());
+        profile.setResidenceHistory(dto.getResidenceHistory());
+        profile.setDependantsAgeRanges(dto.getDependantsAgeRanges());
+        // Retirement fields
+        profile.setRetirementPassiveIncomeGoal(dto.getRetirementPassiveIncomeGoal());
+        profile.setDesiredRetirementAge(dto.getDesiredRetirementAge());
+        // Other fields
+        profile.setExistingLoans(dto.getExistingLoans());
+        return profile;
+    }
+
+    private com.property.entity.Asset toAssetEntity(AssetDTO dto) {
+        if (dto == null) return null;
+        com.property.entity.Asset asset = new com.property.entity.Asset();
+        asset.setId(dto.getId());
+        asset.setAssetType(dto.getAssetType());
+        asset.setCurrentValue(dto.getCurrentValue());
+        asset.setOriginalPrice(dto.getOriginalPrice());
+        asset.setYearPurchased(dto.getYearPurchased());
+        asset.setOwnershipPercentage(dto.getOwnershipPercentage());
+        asset.setIncomeAmount(dto.getIncomeAmount());
+        asset.setIncomeFrequency(dto.getIncomeFrequency());
+        asset.setDescription(dto.getDescription());
+        return asset;
+    }
+
+    private com.property.entity.Liability toLiabilityEntity(LiabilityDTO dto) {
+        if (dto == null) return null;
+        com.property.entity.Liability liability = new com.property.entity.Liability();
+        liability.setId(dto.getId());
+        liability.setLiabilityType(dto.getLiabilityType());
+        liability.setIsPrimaryResidence(dto.getIsPrimaryResidence());
+        liability.setLoanBalance(dto.getLoanBalance());
+        liability.setLimitAmount(dto.getLimitAmount());
+        liability.setLenderType(dto.getLenderType());
+        liability.setInterestRate(dto.getInterestRate());
+        liability.setTermType(dto.getTermType());
+        liability.setRepaymentAmount(dto.getRepaymentAmount());
+        liability.setRepaymentFrequency(dto.getRepaymentFrequency());
+        liability.setLoanType(dto.getLoanType());
+        liability.setDescription(dto.getDescription());
+        return liability;
     }
 } 
