@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { calculateTax, formatCurrency } from '@/utils/taxCalculations';
 
 interface TaxAnalysisProps {
   profile: any;
@@ -9,14 +10,6 @@ interface TaxAnalysisProps {
 }
 
 const TaxAnalysis: React.FC<TaxAnalysisProps> = ({ profile, assets, liabilities }) => {
-  const calculateTax = (income: number) => {
-    if (income <= 18200) return 0;
-    if (income <= 45000) return (income - 18200) * 0.16;
-    if (income <= 135000) return 4288 + (income - 45000) * 0.30;
-    if (income <= 190000) return 31288 + (income - 135000) * 0.37;
-    return 51638 + (income - 190000) * 0.45;
-  };
-
   const calculations = useMemo(() => {
     const grossIncome = Number(profile.grossIncome || 0);
     const partnerIncome = Number(profile.partnerIncome || 0);
@@ -84,31 +77,19 @@ const TaxAnalysis: React.FC<TaxAnalysisProps> = ({ profile, assets, liabilities 
             <div className="p-4 bg-gray-50 rounded-lg">
               <div className="text-sm text-gray-500">Total Gross Income</div>
               <div className="text-xl font-bold">
-                {new Intl.NumberFormat('en-AU', { 
-                  style: 'currency', 
-                  currency: 'AUD',
-                  maximumFractionDigits: 0 
-                }).format(calculations.totalGrossIncome)}
+                {formatCurrency(calculations.totalGrossIncome)}
               </div>
             </div>
             <div className="p-4 bg-gray-50 rounded-lg">
               <div className="text-sm text-gray-500">Total Tax Paid</div>
               <div className="text-xl font-bold">
-                {new Intl.NumberFormat('en-AU', { 
-                  style: 'currency', 
-                  currency: 'AUD',
-                  maximumFractionDigits: 0 
-                }).format(calculations.totalTax)}
+                {formatCurrency(calculations.totalTax)}
               </div>
             </div>
             <div className="p-4 bg-gray-50 rounded-lg">
               <div className="text-sm text-gray-500">Total Net Income</div>
               <div className="text-xl font-bold">
-                {new Intl.NumberFormat('en-AU', { 
-                  style: 'currency', 
-                  currency: 'AUD',
-                  maximumFractionDigits: 0 
-                }).format(calculations.totalNetIncome)}
+                {formatCurrency(calculations.totalNetIncome)}
               </div>
             </div>
             <div className="p-4 bg-gray-50 rounded-lg">
@@ -127,22 +108,10 @@ const TaxAnalysis: React.FC<TaxAnalysisProps> = ({ profile, assets, liabilities 
                   <XAxis dataKey="name" />
                   <YAxis 
                     label={{ value: 'Threshold', angle: -90, position: 'insideLeft' }}
-                    tickFormatter={(value) => 
-                      new Intl.NumberFormat('en-AU', { 
-                        style: 'currency', 
-                        currency: 'AUD',
-                        maximumFractionDigits: 0 
-                      }).format(value)
-                    }
+                    tickFormatter={(value) => formatCurrency(value)}
                   />
                   <Tooltip 
-                    formatter={(value: number) => 
-                      new Intl.NumberFormat('en-AU', { 
-                        style: 'currency', 
-                        currency: 'AUD',
-                        maximumFractionDigits: 0 
-                      }).format(value)
-                    }
+                    formatter={(value: number) => formatCurrency(value)}
                   />
                   <Bar dataKey="threshold" fill="#8884d8" />
                 </BarChart>
@@ -158,31 +127,19 @@ const TaxAnalysis: React.FC<TaxAnalysisProps> = ({ profile, assets, liabilities 
                 <div className="flex justify-between">
                   <span className="text-gray-500">Gross Income:</span>
                   <span className="font-medium">
-                    {new Intl.NumberFormat('en-AU', { 
-                      style: 'currency', 
-                      currency: 'AUD',
-                      maximumFractionDigits: 0 
-                    }).format(Number(profile.grossIncome || 0))}
+                    {formatCurrency(Number(profile.grossIncome || 0))}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Tax Paid:</span>
                   <span className="font-medium">
-                    {new Intl.NumberFormat('en-AU', { 
-                      style: 'currency', 
-                      currency: 'AUD',
-                      maximumFractionDigits: 0 
-                    }).format(calculations.primaryTax)}
+                    {formatCurrency(calculations.primaryTax)}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Net Income:</span>
                   <span className="font-medium">
-                    {new Intl.NumberFormat('en-AU', { 
-                      style: 'currency', 
-                      currency: 'AUD',
-                      maximumFractionDigits: 0 
-                    }).format(calculations.primaryNetIncome)}
+                    {formatCurrency(calculations.primaryNetIncome)}
                   </span>
                 </div>
               </div>
@@ -195,31 +152,19 @@ const TaxAnalysis: React.FC<TaxAnalysisProps> = ({ profile, assets, liabilities 
                   <div className="flex justify-between">
                     <span className="text-gray-500">Gross Income:</span>
                     <span className="font-medium">
-                      {new Intl.NumberFormat('en-AU', { 
-                        style: 'currency', 
-                        currency: 'AUD',
-                        maximumFractionDigits: 0 
-                      }).format(Number(profile.partnerIncome || 0))}
+                      {formatCurrency(Number(profile.partnerIncome || 0))}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Tax Paid:</span>
                     <span className="font-medium">
-                      {new Intl.NumberFormat('en-AU', { 
-                        style: 'currency', 
-                        currency: 'AUD',
-                        maximumFractionDigits: 0 
-                      }).format(calculations.partnerTax)}
+                      {formatCurrency(calculations.partnerTax)}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Net Income:</span>
                     <span className="font-medium">
-                      {new Intl.NumberFormat('en-AU', { 
-                        style: 'currency', 
-                        currency: 'AUD',
-                        maximumFractionDigits: 0 
-                      }).format(calculations.partnerNetIncome)}
+                      {formatCurrency(calculations.partnerNetIncome)}
                     </span>
                   </div>
                 </div>

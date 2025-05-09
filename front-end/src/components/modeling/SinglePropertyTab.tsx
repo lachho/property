@@ -2,110 +2,48 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { calculateSinglePropertyProjection } from './utils';
+import { formatCurrency, PropertyGrowthRate, LoanType, ProjectionData } from './types';
 
-type ProjectionData = {
-  year: number;
-  propertyValue: number;
-  debt: number;
-  equity: number;
-};
+interface SinglePropertyTabProps {
+  defaultPropertyValue?: number;
+  defaultGrowthRate?: PropertyGrowthRate;
+  defaultLoanType?: LoanType;
+  defaultInterestRate?: number;
+}
 
-const GROWTH_RATES = {
-  low: 0.03, // 3% annual growth
-  medium: 0.05, // 5% annual growth
-  high: 0.07, // 7% annual growth
-};
-
-const PropertyProjections = () => {
+const SinglePropertyTab: React.FC<SinglePropertyTabProps> = ({
+  defaultPropertyValue = 750000,
+  defaultGrowthRate = 'medium',
+  defaultLoanType = 'interestOnly',
+  defaultInterestRate = 5.5
+}) => {
   // State for input values
-  const [propertyValue, setPropertyValue] = useState<number>(750000);
-  const [growthRate, setGrowthRate] = useState<'low' | 'medium' | 'high'>('medium');
-  const [loanType, setLoanType] = useState<'interestOnly' | 'principalAndInterest'>('principalAndInterest');
+  const [propertyValue, setPropertyValue] = useState<number>(defaultPropertyValue);
+  const [growthRate, setGrowthRate] = useState<PropertyGrowthRate>(defaultGrowthRate);
+  const [loanType, setLoanType] = useState<LoanType>(defaultLoanType);
+  const [interestRate, setInterestRate] = useState<number>(defaultInterestRate);
   const [projectionData, setProjectionData] = useState<ProjectionData[]>([]);
-  const [interestRate, setInterestRate] = useState<number>(5.5);
+  const [activeView, setActiveView] = useState<'graph' | 'table'>('graph');
 
   // Calculate projections when inputs change
   useEffect(() => {
-    calculateProjections();
+    recalculateProjections();
   }, [propertyValue, growthRate, loanType, interestRate]);
 
-  const calculateProjections = () => {
-    const years = 30;
-    const data: ProjectionData[] = [];
-    const annualGrowthRate = GROWTH_RATES[growthRate];
-    
-    // Initial values
-    // Starting with 5% deposit (95% LVR)
-    const initialDeposit = propertyValue * 0.05;
-    let currentDebt = propertyValue - initialDeposit;
-    let currentValue = propertyValue;
-    
-    // For Principal and Interest loan
-    const monthlyInterestRate = interestRate / 100 / 12;
-    const numberOfPayments = years * 12;
-    const monthlyPayment = loanType === 'principalAndInterest' 
-      ? (currentDebt * monthlyInterestRate * Math.pow(1 + monthlyInterestRate, numberOfPayments)) / 
-        (Math.pow(1 + monthlyInterestRate, numberOfPayments) - 1)
-      : 0;
-
-    // Year 0 (starting point)
-    data.push({
-      year: 0,
-      propertyValue: currentValue,
-      debt: currentDebt,
-      equity: currentValue - currentDebt,
-    });
-
-    for (let year = 1; year <= years; year++) {
-      // Apply Home Guarantee Scheme in year 1 (additional 15% coverage)
-      if (year === 1) {
-        // Home Guarantee Scheme provides 15% coverage
-        // This effectively reduces the debt by 15% of the property value
-        currentDebt = currentDebt - (propertyValue * 0.15);
-      }
-
-      // Calculate property growth for this year
-      currentValue = currentValue * (1 + annualGrowthRate);
-
-      // Calculate debt reduction for this year if principal and interest
-      if (loanType === 'principalAndInterest') {
-        // Total annual payment
-        const annualPayment = monthlyPayment * 12;
-        // Calculate annual interest
-        const annualInterest = currentDebt * (interestRate / 100);
-        // Principal repayment is the difference
-        const principalRepayment = annualPayment - annualInterest;
-        
-        // Ensure we don't go below zero
-        currentDebt = Math.max(0, currentDebt - principalRepayment);
-      }
-      // Interest only loan doesn't reduce principal
-
-      // Add data point for this year
-      data.push({
-        year,
-        propertyValue: Math.round(currentValue),
-        debt: Math.round(currentDebt),
-        equity: Math.round(currentValue - currentDebt),
-      });
-    }
-
+  const recalculateProjections = () => {
+    const data = calculateSinglePropertyProjection(
+      propertyValue,
+      growthRate,
+      loanType,
+      interestRate
+    );
     setProjectionData(data);
-  };
-
-  // Format currency for display
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-AU', {
-      style: 'currency',
-      currency: 'AUD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
   };
 
   return (
@@ -132,7 +70,7 @@ const PropertyProjections = () => {
                 <Label htmlFor="growthRate">Capital Growth Rate</Label>
                 <Select
                   value={growthRate}
-                  onValueChange={(value) => setGrowthRate(value as 'low' | 'medium' | 'high')}
+                  onValueChange={(value) => setGrowthRate(value as PropertyGrowthRate)}
                 >
                   <SelectTrigger id="growthRate">
                     <SelectValue placeholder="Select growth rate" />
@@ -163,7 +101,7 @@ const PropertyProjections = () => {
                 <Label htmlFor="loanType">Loan Type</Label>
                 <Select
                   value={loanType}
-                  onValueChange={(value) => setLoanType(value as 'interestOnly' | 'principalAndInterest')}
+                  onValueChange={(value) => setLoanType(value as LoanType)}
                 >
                   <SelectTrigger id="loanType">
                     <SelectValue placeholder="Select loan type" />
@@ -175,7 +113,7 @@ const PropertyProjections = () => {
                 </Select>
               </div>
 
-              <Button onClick={calculateProjections} className="w-full">
+              <Button onClick={recalculateProjections} className="w-full">
                 Recalculate Projections
               </Button>
             </div>
@@ -198,7 +136,7 @@ const PropertyProjections = () => {
         </Card>
       </div>
 
-      <Tabs defaultValue="graph" className="w-full">
+      <Tabs defaultValue="graph" value={activeView} onValueChange={(value) => setActiveView(value as 'graph' | 'table')} className="w-full">
         <TabsList>
           <TabsTrigger value="graph">Graph</TabsTrigger>
           <TabsTrigger value="table">Table</TabsTrigger>
@@ -282,18 +220,8 @@ const PropertyProjections = () => {
           </Card>
         </TabsContent>
       </Tabs>
-
-      <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
-        <h3 className="font-medium mb-2">Disclaimer</h3>
-        <p className="text-sm text-gray-600">
-          Note that the projections listed above simply illustrate the outcome calculated from the input values 
-          and the assumptions contained in the model. Hence the figures can be varied as required and are in no 
-          way intended to be a guarantee of future performance. All financial decisions should be made in 
-          consultation with a qualified financial advisor.
-        </p>
-      </div>
     </div>
   );
 };
 
-export default PropertyProjections; 
+export default SinglePropertyTab; 
