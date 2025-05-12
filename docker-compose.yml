@@ -1,8 +1,6 @@
 services:
   postgres:
-    build:
-      context: ./db
-      dockerfile: Dockerfile
+    image: postgres:15-alpine
     environment:
       POSTGRES_DB: property_db
       POSTGRES_USER: property_user
@@ -16,9 +14,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-    stop_grace_period: 30s
-    restart: unless-stopped
-    stop_signal: SIGINT
 
   backend:
     build:
@@ -39,7 +34,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    stop_grace_period: 20s
 
   frontend:
     build:

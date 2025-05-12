@@ -56,7 +56,7 @@ const ModelingDashboard = () => {
               </TabsTrigger>
               <TabsTrigger value="single">
                 <LineChart className="w-4 h-4 mr-2" />
-                Single Property
+                First Time Buyers
               </TabsTrigger>
               <TabsTrigger value="portfolio">
                 <PieChart className="w-4 h-4 mr-2" />
