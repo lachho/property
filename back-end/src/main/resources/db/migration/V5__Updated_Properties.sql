@@ -5,7 +5,7 @@ DROP TABLE IF EXISTS properties CASCADE;
 
 CREATE TABLE properties (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    CONSTRAINT portfolio_id FOREIGN KEY (portfolio_id) REFERENCES portfolios(id) ON DELETE CASCADE
+    CONSTRAINT portfolio_id FOREIGN KEY (portfolio_id) REFERENCES portfolios(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     street TEXT NOT NULL,
     suburb TEXT NOT NULL,
