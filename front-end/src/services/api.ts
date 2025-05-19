@@ -1,7 +1,7 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 
 // Try both paths - some Spring Boot configurations use /api prefix, others don't
-const API_BASE_URL = 'http://localhost:8080';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://backend:8080';
 const API_URL = `${API_BASE_URL}/api`;
 
 // Enable debugging to see request/response data
@@ -152,14 +152,19 @@ export interface Property {
     features?: string[];
 }
 
-// Create axios instance
+// Create axios instance with retry logic
 const api: AxiosInstance = axios.create({
     baseURL: API_URL,
     headers: {
         'Content-Type': 'application/json',
     },
-    withCredentials: false // Changed to false to match CORS config
+    withCredentials: false,
+    timeout: 10000, // 10 second timeout
 });
+
+// Add retry configuration to the instance
+(api as any).defaults.retry = 3;
+(api as any).defaults.retryDelay = 1000;
 
 // Log URL for debugging
 console.log('API URL configured as:', API_URL);
@@ -187,66 +192,29 @@ api.interceptors.request.use(
     }
 );
 
-// Response interceptor to handle token expiration
-api.interceptors.response.use(
-    (response) => {
-        if (DEBUG) {
-            console.log('Response:', {
-                status: response.status,
-                data: response.data,
-                headers: response.headers
-            });
-        }
-        return response;
-    },
-    async (error) => {
-        if (DEBUG) {
-            console.error('Response error:', {
-                status: error.response?.status,
-                data: error.response?.data,
-                message: error.message
-            });
-        }
-        
-        const originalRequest = error.config;
-        
-        // If the error is 401 and we haven't already attempted to refresh
-        if (error.response?.status === 401 && !originalRequest._retry) {
-            originalRequest._retry = true;
-            
-            try {
-                // Attempt to refresh the token
-                const refreshToken = localStorage.getItem('refreshToken');
-                if (!refreshToken) {
-                    // No refresh token available, redirect to login
-                    window.location.href = '/login';
-                    return Promise.reject(error);
-                }
-
-                const response = await api.post('/auth/refresh', { refreshToken });
-                
-                // Update tokens in local storage
-                const { accessToken, refreshToken: newRefreshToken } = response.data;
-                localStorage.setItem('token', accessToken);
-                if (newRefreshToken) {
-                    localStorage.setItem('refreshToken', newRefreshToken);
-                }
-                
-                // Retry the original request with the new token
-                originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-                return api(originalRequest);
-            } catch (refreshError) {
-                // If refresh fails, redirect to login
-                localStorage.removeItem('token');
-                localStorage.removeItem('refreshToken');
-                window.location.href = '/login';
-                return Promise.reject(refreshError);
-            }
-        }
-        
+// Add retry interceptor
+api.interceptors.response.use(null, async (error) => {
+    const { config } = error;
+    if (!config || !config.retry) {
         return Promise.reject(error);
     }
-);
+    
+    config.retryCount = config.retryCount || 0;
+    
+    if (config.retryCount >= config.retry) {
+        return Promise.reject(error);
+    }
+    
+    config.retryCount += 1;
+    const backoff = new Promise(resolve => {
+        setTimeout(() => {
+            resolve(null);
+        }, config.retryDelay || 1000);
+    });
+    
+    await backoff;
+    return api(config);
+});
 
 // API Service
 const apiService = {
