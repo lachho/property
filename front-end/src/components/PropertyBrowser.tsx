@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Search, Home, Filter, ChevronDown, Plus } from 'lucide-react';
+import apiService, { Property } from '@/services/api';
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -39,7 +38,7 @@ import { Badge } from "@/components/ui/badge";
 const PropertyBrowser = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [properties, setProperties] = useState([]);
+  const [properties, setProperties] = useState<Property[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 2000000]);
@@ -47,42 +46,56 @@ const PropertyBrowser = () => {
   const [propertyType, setPropertyType] = useState<string>('any');
   const [sortBy, setSortBy] = useState<string>('price_asc');
 
-  // Fetch properties from Supabase
+  // Fetch properties from API
   useEffect(() => {
     const fetchProperties = async () => {
       setIsLoading(true);
       try {
-        let query = supabase.from('properties').select('*');
+        // Get all properties from the API
+        const response = await apiService.getProperties();
+        let filteredProperties = response.data || [];
         
-        // Apply filters if they exist
+        // Apply client-side filtering
+        // Filter by search query
         if (searchQuery) {
-          query = query.or(`name.ilike.%${searchQuery}%,address.ilike.%${searchQuery}%`);
+          const searchLower = searchQuery.toLowerCase();
+          filteredProperties = filteredProperties.filter(property => 
+            property.name?.toLowerCase().includes(searchLower) || 
+            property.street?.toLowerCase().includes(searchLower) ||
+            property.suburb?.toLowerCase().includes(searchLower)
+          );
         }
         
+        // Filter by price range
         if (priceRange[0] > 0 || priceRange[1] < 2000000) {
-          query = query.gte('price', priceRange[0]).lte('price', priceRange[1]);
+          filteredProperties = filteredProperties.filter(property => 
+            property.price >= priceRange[0] && property.price <= priceRange[1]
+          );
         }
         
+        // Filter by bedrooms
         if (bedrooms && bedrooms !== 'any') {
-          query = query.eq('beds', parseInt(bedrooms));
+          filteredProperties = filteredProperties.filter(property => 
+            property.beds >= parseInt(bedrooms)
+          );
         }
         
         // Apply sorting
-        if (sortBy === 'price_asc') {
-          query = query.order('price', { ascending: true });
-        } else if (sortBy === 'price_desc') {
-          query = query.order('price', { ascending: false });
-        } else if (sortBy === 'newest') {
-          query = query.order('created_at', { ascending: false });
-        } else if (sortBy === 'yield') {
-          query = query.order('rental_yield', { ascending: false });
-        }
+        filteredProperties.sort((a, b) => {
+          if (sortBy === 'price_asc') {
+            return a.price - b.price;
+          } else if (sortBy === 'price_desc') {
+            return b.price - a.price;
+          } else if (sortBy === 'newest') {
+            // No created_at field in the API Property interface
+            return 0;
+          } else if (sortBy === 'yield') {
+            return (b.rentalYield || 0) - (a.rentalYield || 0);
+          }
+          return 0;
+        });
         
-        const { data, error } = await query;
-        
-        if (error) throw error;
-        
-        setProperties(data || []);
+        setProperties(filteredProperties);
       } catch (error) {
         console.error("Error fetching properties:", error);
         toast({
@@ -110,13 +123,23 @@ const PropertyBrowser = () => {
   // Handle adding a property to portfolio
   const handleAddToPortfolio = async (propertyId: string) => {
     try {
+      const userId = localStorage.getItem('userId');
+      if (!userId) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "You must be logged in to save properties.",
+        });
+        return;
+      }
+      
+      // Call API to save the property
+      await apiService.addSavedProperty(userId, propertyId);
+      
       toast({
         title: "Success",
         description: "Property added to your portfolio.",
       });
-      
-      // In a real implementation, this would add the property to the user's saved_properties
-      // await supabase.from('saved_properties').insert({ user_id: user.id, property_id: propertyId });
       
       // Navigate to property details
       navigate(`/property/${propertyId}`);
@@ -211,12 +234,12 @@ const PropertyBrowser = () => {
         </div>
       ) : properties.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {properties.map((property: any) => (
+          {properties.map((property) => (
             <Card key={property.id} className="overflow-hidden">
               <div className="relative h-48 w-full">
-                {property.image_url ? (
+                {property.imageUrl ? (
                   <img 
-                    src={property.image_url} 
+                    src={property.imageUrl} 
                     alt={property.name}
                     className="h-full w-full object-cover"
                   />
@@ -231,7 +254,7 @@ const PropertyBrowser = () => {
                   <CardTitle className="text-lg">{property.name}</CardTitle>
                   <span className="font-bold text-primary">{formatCurrency(property.price)}</span>
                 </div>
-                <CardDescription>{property.address}</CardDescription>
+                <CardDescription>{property.street}, {property.suburb}</CardDescription>
               </CardHeader>
               <CardContent className="py-0">
                 <div className="flex items-center gap-4 text-sm text-gray-500 mb-4">
@@ -240,14 +263,14 @@ const PropertyBrowser = () => {
                   <div>{property.area} m²</div>
                 </div>
                 <div className="flex flex-wrap gap-2 mb-4">
-                  {property.rental_yield && (
+                  {property.rentalYield && (
                     <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                      {property.rental_yield}% Yield
+                      {property.rentalYield}% Yield
                     </Badge>
                   )}
-                  {property.growth_rate && (
+                  {property.growthRate && (
                     <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                      {property.growth_rate}% Growth
+                      {property.growthRate}% Growth
                     </Badge>
                   )}
                 </div>
@@ -262,7 +285,7 @@ const PropertyBrowser = () => {
                 </Button>
                 <Button 
                   className="flex-1"
-                  onClick={() => handleAddToPortfolio(property.id)}
+                  onClick={() => handleAddToPortfolio(property.id?.toString() || '')}
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add to Portfolio

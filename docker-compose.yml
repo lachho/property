@@ -1,4 +1,7 @@
+version: '3.8'
+
 services:
+  # Database service (PostgreSQL)
   postgres:
     image: postgres:15-alpine
     container_name: property_postgres
@@ -17,6 +20,7 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # Backend service (Spring Boot)
   backend:
     build:
       context: ./back-end
@@ -26,6 +30,9 @@ services:
       - "8080:8080"
     env_file:
       - ./back-end/.env
+    environment:
+      - SERVER_ADDRESS=134.199.160.11
+      - SERVER_PORT=8080
     volumes:
       - ./back-end/src:/app/src
       - ./back-end/pom.xml:/app/pom.xml
@@ -40,6 +47,8 @@ services:
       - postgres
     restart: unless-stopped
 
+  # Frontend service (React with Vite)
+  # Note: Running on ubuntu-s-1vcpu-1gb-syd1-01 (134.199.160.11)
   frontend:
     build:
       context: ./front-end
@@ -52,11 +61,14 @@ services:
       - "3001:3001"
     environment:
       - VITE_API_URL=http://134.199.160.11:8080
+      - HOST=0.0.0.0
+      - PORT=3001
     depends_on:
       - backend
     restart: unless-stopped
     command: npm run dev -- --host 0.0.0.0 --port 3001
 
+# Persistent volumes
 volumes:
   postgres_data:
     driver: local

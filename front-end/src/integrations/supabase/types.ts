@@ -110,51 +110,35 @@ export type Database = {
       }
       properties: {
         Row: {
-          address: string
-          area: number
-          baths: number
-          beds: number
-          created_at: string
-          description: string | null
-          features: string[] | null
-          growth_rate: number | null
-          id: string
-          image_url: string | null
-          name: string
-          price: number
-          rental_yield: number | null
-        }
+          id: string;
+          name: string;
+          price: number;
+          beds: number;
+          baths: number;
+          address: string;
+          created_at: string;
+          rental_yield: number;
+        };
         Insert: {
-          address: string
-          area: number
-          baths: number
-          beds: number
-          created_at?: string
-          description?: string | null
-          features?: string[] | null
-          growth_rate?: number | null
-          id?: string
-          image_url?: string | null
-          name: string
-          price: number
-          rental_yield?: number | null
-        }
+          id?: string;
+          name: string;
+          price: number;
+          beds: number;
+          baths: number;
+          address: string;
+          created_at?: string;
+          rental_yield: number;
+        };
         Update: {
-          address?: string
-          area?: number
-          baths?: number
-          beds?: number
-          created_at?: string
-          description?: string | null
-          features?: string[] | null
-          growth_rate?: number | null
-          id?: string
-          image_url?: string | null
-          name?: string
-          price?: number
-          rental_yield?: number | null
-        }
-        Relationships: []
+          id?: string;
+          name?: string;
+          price?: number;
+          beds?: number;
+          baths?: number;
+          address?: string;
+          created_at?: string;
+          rental_yield?: number;
+        };
       }
       saved_properties: {
         Row: {
