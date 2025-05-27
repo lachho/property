@@ -36,7 +36,6 @@
 /home/lachy/coding/property-path/back-end/src/main/java/com/property/service/impl/LiabilityServiceImpl.java
 /home/lachy/coding/property-path/back-end/src/main/java/com/property/security/JwtService.java
 /home/lachy/coding/property-path/back-end/src/main/java/com/property/Application.java
-/home/lachy/coding/property-path/back-end/src/main/java/com/property/entity/PostgreSQLEnumType.java
 /home/lachy/coding/property-path/back-end/src/main/java/com/property/controller/ProfileController.java
 /home/lachy/coding/property-path/back-end/src/main/java/com/property/dto/PropertyDTO.java
 /home/lachy/coding/property-path/back-end/src/main/java/com/property/service/LiabilityService.java

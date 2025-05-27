@@ -24,7 +24,6 @@ com/property/dto/SimulationResponse.class
 com/property/dto/PropertyDTO.class
 com/property/entity/Asset.class
 com/property/dto/PortfolioDTO.class
-com/property/entity/PostgreSQLEnumType.class
 com/property/Application.class
 com/property/repository/AssetRepository.class
 com/property/dto/MortgageLeadDto$MortgageLeadDtoBuilder.class
@@ -58,7 +57,6 @@ com/property/entity/Liability.class
 com/property/service/ProfileService.class
 com/property/exception/ResourceNotFoundException.class
 com/property/repository/LiabilityRepository.class
-com/property/config/HibernateConfig$1.class
 com/property/service/PortfolioService.class
 com/property/dto/PortfolioDTO$PortfolioDTOBuilder.class
 com/property/service/impl/PortfolioServiceImpl.class

@@ -54,8 +54,9 @@ public class Profile implements UserDetails {
     @Column(name = "address", columnDefinition = "TEXT")
     private String address;
     
-    // Using custom PostgreSQL enum type mapping
-    @Column(name = "role", nullable = false, columnDefinition = "user_role")
+    // Using String enum type to match PostgreSQL enum values 'ADMIN' and 'CLIENT'
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false)
     private UserRole role = UserRole.CLIENT;
     
     @Column(name = "created_at", nullable = false, updatable = false)
