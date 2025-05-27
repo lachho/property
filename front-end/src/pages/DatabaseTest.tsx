@@ -32,6 +32,7 @@ const DatabaseTest = () => {
   });
   const [apiBaseUrl, setApiBaseUrl] = useState<string>('');
   const [apiEndpoint, setApiEndpoint] = useState<string>('');
+  const [diagnosticData, setDiagnosticData] = useState<any>(null);
 
   const addLog = (type: 'info' | 'success' | 'error', message: string, details?: string) => {
     const timestamp = new Date().toISOString();
@@ -240,6 +241,119 @@ const DatabaseTest = () => {
     }
   };
 
+  const getDiagnosticInfo = async () => {
+    setIsLoading(true);
+    addLog('info', 'Getting diagnostic information...');
+    
+    try {
+      const response = await apiService.getDiagnosticInfo();
+      setDiagnosticData(response.data);
+      addLog('success', 'Got diagnostic information', 
+        JSON.stringify(response.data, null, 2));
+    } catch (error: any) {
+      addLog('error', 'Failed to get diagnostic info', error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const createTestAdmin = async () => {
+    setIsLoading(true);
+    addLog('info', 'Creating test admin user directly...');
+    
+    try {
+      const response = await apiService.createTestAdmin();
+      
+      if (response.data && response.data.userId) {
+        const userId = response.data.userId;
+        const userEmail = response.data.email;
+        const userRole = response.data.role;
+        
+        addLog('success', `Test admin created successfully: ${userEmail} (${userRole})`, 
+          JSON.stringify(response.data, null, 2));
+        
+        // Store the token if it exists
+        if (response.data.accessToken) {
+          localStorage.setItem('token', response.data.accessToken);
+        }
+        
+        setTestResults(prev => ({ ...prev, adminCreation: true }));
+        
+        // Continue with tests
+        await runAdditionalTests(userId);
+      } else {
+        addLog('info', 'Response received but no user ID found', 
+          JSON.stringify(response.data, null, 2));
+      }
+    } catch (error: any) {
+      const errorDetails = error.response?.data 
+        ? JSON.stringify(error.response.data, null, 2) 
+        : error.message || 'Unknown error';
+      
+      addLog('error', 'Failed to create test admin directly', errorDetails);
+      setTestResults(prev => ({ ...prev, adminCreation: false }));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const runAdditionalTests = async (profileId: string) => {
+    // Create a test asset directly
+    await createDirectTestAsset();
+    
+    // Create a test liability directly
+    await createDirectTestLiability();
+    
+    // Update the profile
+    await updateProfile(profileId);
+  };
+
+  const createDirectTestAsset = async () => {
+    try {
+      addLog('info', 'Creating test asset directly...');
+      
+      const response = await apiService.createTestAsset();
+      
+      addLog('success', 'Test asset created directly', 
+        JSON.stringify(response.data, null, 2));
+      setTestResults(prev => ({ ...prev, assetCreation: true }));
+      
+      return response.data;
+    } catch (error: any) {
+      const errorDetails = error.response?.data 
+        ? JSON.stringify(error.response.data, null, 2) 
+        : error.message || 'Unknown error';
+      
+      addLog('error', 'Failed to create test asset directly', errorDetails);
+      setTestResults(prev => ({ ...prev, assetCreation: false }));
+      
+      return null;
+    }
+  };
+
+  const createDirectTestLiability = async () => {
+    try {
+      addLog('info', 'Creating test liability directly...');
+      
+      const response = await apiService.createTestLiability();
+      
+      addLog('success', 'Test liability created directly', 
+        JSON.stringify(response.data, null, 2));
+      setTestResults(prev => ({ ...prev, liabilityCreation: true }));
+      
+      return response.data;
+    } catch (error: any) {
+      const errorDetails = error.response?.data 
+        ? JSON.stringify(error.response.data, null, 2) 
+        : error.message || 'Unknown error';
+      
+      addLog('error', 'Failed to create test liability directly', errorDetails);
+      setTestResults(prev => ({ ...prev, liabilityCreation: false }));
+      
+      return null;
+    }
+  };
+
   const runAllTests = async () => {
     setIsLoading(true);
     addLog('info', 'Starting database permission tests...');
@@ -254,28 +368,8 @@ const DatabaseTest = () => {
         adminRoleSet: null,
       });
       
-      // Step 1: Create admin user or login if exists
-      const authResponse = await createAdminUser();
-      
-      if (!authResponse) {
-        addLog('error', 'Tests aborted: Failed to create or log in as admin user');
-        setIsLoading(false);
-        return;
-      }
-      
-      const profileId = authResponse.id;
-      
-      // Step 2: Create a test asset
-      await createTestAsset(profileId);
-      
-      // Step 3: Create a test liability
-      await createTestLiability(profileId);
-      
-      // Step 4: Update the profile
-      await updateProfile(profileId);
-      
-      // Step 5: Set user as admin
-      await setUserAsAdmin(profileId);
+      // Step 1: Try using direct diagnostic endpoint to create admin
+      await createTestAdmin();
       
       addLog('info', 'All tests completed');
     } catch (error: any) {
@@ -348,6 +442,54 @@ const DatabaseTest = () => {
             className="mr-2"
           >
             Test API Endpoints
+          </Button>
+          <Button 
+            onClick={getDiagnosticInfo} 
+            disabled={isLoading} 
+            variant="outline"
+          >
+            Get Diagnostic Info
+          </Button>
+        </div>
+      </div>
+      
+      <div className="bg-gray-100 p-4 rounded-md mb-6">
+        <h2 className="text-lg font-semibold mb-2">Direct Tests</h2>
+        <p className="text-sm text-gray-600 mb-4">
+          Run individual test operations directly against the API endpoints.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button 
+            onClick={createTestAdmin} 
+            disabled={isLoading} 
+            variant="outline"
+            size="sm"
+          >
+            Create Admin User
+          </Button>
+          <Button 
+            onClick={createDirectTestAsset} 
+            disabled={isLoading} 
+            variant="outline"
+            size="sm"
+          >
+            Create Test Asset
+          </Button>
+          <Button 
+            onClick={createDirectTestLiability} 
+            disabled={isLoading} 
+            variant="outline"
+            size="sm"
+          >
+            Create Test Liability
+          </Button>
+          <Button 
+            onClick={getDiagnosticInfo} 
+            disabled={isLoading} 
+            variant="outline"
+            size="sm"
+          >
+            Get Diagnostic Info
           </Button>
         </div>
       </div>

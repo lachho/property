@@ -1,18 +1,45 @@
 package com.property.controller;
 
+import com.property.entity.Profile;
+import com.property.entity.UserRole;
+import com.property.entity.Asset;
+import com.property.entity.Liability;
+import com.property.repository.ProfileRepository;
+import com.property.service.AssetService;
+import com.property.service.LiabilityService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.time.Year;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Controller for diagnostic endpoints to help troubleshoot API connectivity issues
  */
 @RestController
 public class DiagnosticController {
+
+    @Autowired
+    private ProfileRepository profileRepository;
+    
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private AssetService assetService;
+
+    @Autowired
+    private LiabilityService liabilityService;
 
     /**
      * Test endpoint at the root path
@@ -67,6 +94,111 @@ public class DiagnosticController {
     }
     
     /**
+     * Create a test admin user directly (bypassing normal registration flow)
+     * @return Information about the created user
+     */
+    @PostMapping("/api/test/create-admin")
+    public ResponseEntity<Map<String, Object>> createTestAdmin() {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            // Check if test admin already exists
+            Optional<Profile> existingAdmin = profileRepository.findByEmail("admin@test.com");
+            
+            if (existingAdmin.isPresent()) {
+                Profile admin = existingAdmin.get();
+                // Update role to ADMIN if needed
+                if (admin.getRole() != UserRole.ADMIN) {
+                    admin.setRole(UserRole.ADMIN);
+                    profileRepository.save(admin);
+                    response.put("message", "Existing user updated to ADMIN role");
+                } else {
+                    response.put("message", "Admin user already exists");
+                }
+                response.put("userId", admin.getId().toString());
+                response.put("email", admin.getEmail());
+                response.put("role", admin.getRole().name());
+                return ResponseEntity.ok(response);
+            }
+            
+            // Create new admin user with all required fields
+            Profile adminProfile = new Profile();
+            
+            // Required personal details
+            adminProfile.setFirstName("Admin");
+            adminProfile.setLastName("User");
+            adminProfile.setEmail("admin@test.com");
+            adminProfile.setPassword(passwordEncoder.encode("password"));
+            adminProfile.setPhone("1234567890");
+            adminProfile.setRole(UserRole.ADMIN);
+            adminProfile.setCreatedAt(OffsetDateTime.now());
+            
+            // Required address
+            adminProfile.setAddress("123 Test Street, Test City");
+            
+            // Required occupation details
+            adminProfile.setOccupation("System Administrator");
+            adminProfile.setEmployer("Property Path");
+            adminProfile.setEmploymentLength(5);
+            adminProfile.setEmploymentType("FULL_TIME");
+            adminProfile.setOnProbation(false);
+            adminProfile.setGrossIncome(new BigDecimal("120000"));
+            adminProfile.setNonTaxableIncome(new BigDecimal("0"));
+            
+            // Required partner assessment
+            adminProfile.setAssessWithPartner(false);
+            
+            // Initialize collections
+            adminProfile.setPortfolios(new ArrayList<>());
+            adminProfile.setAssets(new ArrayList<>());
+            adminProfile.setLiabilities(new ArrayList<>());
+            
+            // Required expense details
+            adminProfile.setIsRenting(false);
+            adminProfile.setRentPerWeek(new BigDecimal("0"));
+            adminProfile.setMonthlyLivingExpenses(new BigDecimal("2500"));
+            adminProfile.setResidenceHistory("Owned current residence for 5 years");
+            adminProfile.setDependants(0);
+            adminProfile.setDependantsAgeRanges("");
+            
+            // Required retirement details
+            adminProfile.setRetirementPassiveIncomeGoal(new BigDecimal("80000"));
+            adminProfile.setDesiredRetirementAge(65);
+            
+            // Required other fields
+            adminProfile.setExistingLoans(new BigDecimal("0"));
+            adminProfile.setMaritalStatus("SINGLE");
+            
+            // Save profile
+            Profile savedProfile = profileRepository.save(adminProfile);
+            
+            response.put("status", "success");
+            response.put("message", "Admin user created successfully");
+            response.put("userId", savedProfile.getId().toString());
+            response.put("email", savedProfile.getEmail());
+            response.put("role", savedProfile.getRole().name());
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("status", "error");
+            response.put("message", "Failed to create admin user");
+            response.put("error", e.getMessage());
+            
+            // Add more detailed error information
+            if (e.getCause() != null) {
+                response.put("cause", e.getCause().getMessage());
+            }
+            
+            StackTraceElement[] stackTrace = e.getStackTrace();
+            if (stackTrace.length > 0) {
+                response.put("stackTrace", stackTrace[0].toString());
+            }
+            
+            return ResponseEntity.internalServerError().body(response);
+        }
+    }
+    
+    /**
      * Diagnostic info endpoint
      * @return Detailed diagnostic information about the application
      */
@@ -90,6 +222,141 @@ public class DiagnosticController {
         env.put("FRONTEND_URL", System.getenv("FRONTEND_URL"));
         response.put("environment", env);
         
+        // Database connection info
+        try {
+            long userCount = profileRepository.count();
+            response.put("database", Map.of(
+                "connection", "OK",
+                "userCount", userCount
+            ));
+        } catch (Exception e) {
+            response.put("database", Map.of(
+                "connection", "ERROR",
+                "error", e.getMessage()
+            ));
+        }
+        
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Create a test asset directly
+     * @return Information about the created asset
+     */
+    @PostMapping("/api/test/create-asset")
+    public ResponseEntity<Map<String, Object>> createTestAsset() {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            // First check if we have an admin user
+            Optional<Profile> adminUser = profileRepository.findByEmail("admin@test.com");
+            if (!adminUser.isPresent()) {
+                // Create admin user first
+                createTestAdmin();
+                adminUser = profileRepository.findByEmail("admin@test.com");
+                if (!adminUser.isPresent()) {
+                    throw new RuntimeException("Failed to create admin user for asset test");
+                }
+            }
+            
+            // Create a test asset
+            Asset asset = new Asset();
+            asset.setAssetType("TEST_ASSET");
+            asset.setCurrentValue(new BigDecimal("150000"));
+            asset.setOriginalPrice(new BigDecimal("100000"));
+            asset.setYearPurchased(Year.of(2020));
+            asset.setOwnershipPercentage(new BigDecimal("100"));
+            asset.setIncomeAmount(new BigDecimal("1000"));
+            asset.setIncomeFrequency("MONTHLY");
+            asset.setDescription("Test asset created via diagnostic endpoint");
+            asset.setProfile(adminUser.get());
+            
+            // Save the asset
+            Asset savedAsset = assetService.createAsset(adminUser.get().getId(), asset);
+            
+            response.put("status", "success");
+            response.put("message", "Test asset created successfully");
+            response.put("assetId", savedAsset.getId());
+            response.put("assetType", savedAsset.getAssetType());
+            response.put("profileId", adminUser.get().getId().toString());
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("status", "error");
+            response.put("message", "Failed to create test asset");
+            response.put("error", e.getMessage());
+            
+            if (e.getCause() != null) {
+                response.put("cause", e.getCause().getMessage());
+            }
+            
+            StackTraceElement[] stackTrace = e.getStackTrace();
+            if (stackTrace.length > 0) {
+                response.put("stackTrace", stackTrace[0].toString());
+            }
+            
+            return ResponseEntity.internalServerError().body(response);
+        }
+    }
+
+    /**
+     * Create a test liability directly
+     * @return Information about the created liability
+     */
+    @PostMapping("/api/test/create-liability")
+    public ResponseEntity<Map<String, Object>> createTestLiability() {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            // First check if we have an admin user
+            Optional<Profile> adminUser = profileRepository.findByEmail("admin@test.com");
+            if (!adminUser.isPresent()) {
+                // Create admin user first
+                createTestAdmin();
+                adminUser = profileRepository.findByEmail("admin@test.com");
+                if (!adminUser.isPresent()) {
+                    throw new RuntimeException("Failed to create admin user for liability test");
+                }
+            }
+            
+            // Create a test liability
+            Liability liability = new Liability();
+            liability.setLiabilityType("TEST_LIABILITY");
+            liability.setLoanBalance(new BigDecimal("50000"));
+            liability.setLenderType("BANK");
+            liability.setInterestRate(new BigDecimal("4.5"));
+            liability.setTermType("YEARS");
+            liability.setRepaymentAmount(new BigDecimal("350"));
+            liability.setRepaymentFrequency("MONTHLY");
+            liability.setLoanType("PERSONAL_LOAN");
+            liability.setDescription("Test liability created via diagnostic endpoint");
+            liability.setProfile(adminUser.get());
+            
+            // Save the liability
+            Liability savedLiability = liabilityService.createLiability(adminUser.get().getId(), liability);
+            
+            response.put("status", "success");
+            response.put("message", "Test liability created successfully");
+            response.put("liabilityId", savedLiability.getId());
+            response.put("liabilityType", savedLiability.getLiabilityType());
+            response.put("profileId", adminUser.get().getId().toString());
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("status", "error");
+            response.put("message", "Failed to create test liability");
+            response.put("error", e.getMessage());
+            
+            if (e.getCause() != null) {
+                response.put("cause", e.getCause().getMessage());
+            }
+            
+            StackTraceElement[] stackTrace = e.getStackTrace();
+            if (stackTrace.length > 0) {
+                response.put("stackTrace", stackTrace[0].toString());
+            }
+            
+            return ResponseEntity.internalServerError().body(response);
+        }
     }
 } 

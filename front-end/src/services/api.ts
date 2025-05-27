@@ -518,6 +518,32 @@ const apiService = {
     // Set a user's role to ADMIN for testing
     setAdminRole: (userId: string): Promise<AxiosResponse<ProfileDto>> => {
         return api.post(`/profiles/${userId}/set-admin`);
+    },
+
+    // Create test admin user directly (diagnostic endpoint)
+    createTestAdmin: (): Promise<AxiosResponse<any>> => {
+        return axios.post(`${API_URL}/test/create-admin`, {}, {
+            headers: { 'Content-Type': 'application/json' }
+        });
+    },
+
+    // Create test asset directly (diagnostic endpoint)
+    createTestAsset: (): Promise<AxiosResponse<any>> => {
+        return axios.post(`${API_URL}/test/create-asset`, {}, {
+            headers: { 'Content-Type': 'application/json' }
+        });
+    },
+
+    // Create test liability directly (diagnostic endpoint)
+    createTestLiability: (): Promise<AxiosResponse<any>> => {
+        return axios.post(`${API_URL}/test/create-liability`, {}, {
+            headers: { 'Content-Type': 'application/json' }
+        });
+    },
+
+    // Get diagnostic information
+    getDiagnosticInfo: (): Promise<AxiosResponse<any>> => {
+        return axios.get(`${API_URL}/diagnostic`);
     }
 };
 

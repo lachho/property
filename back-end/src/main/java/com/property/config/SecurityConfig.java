@@ -34,9 +34,23 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(authz -> authz
+                // Public endpoints - no authentication required
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/auth/**").permitAll()
+                .requestMatchers("/").permitAll()
+                .requestMatchers("/api").permitAll()
+                .requestMatchers("/api/test/**").permitAll()
+                .requestMatchers("/api/diagnostic").permitAll()
+                // For testing purposes, allow all endpoints
+                // In production, you should restrict these endpoints appropriately
                 .requestMatchers("/api/profiles/**").permitAll()
+                .requestMatchers("/api/properties/**").permitAll()
+                .requestMatchers("/api/assets/**").permitAll()
+                .requestMatchers("/api/liabilities/**").permitAll()
+                .requestMatchers("/api/mortgage-leads/**").permitAll()
+                .requestMatchers("/api/borrowing-leads/**").permitAll()
+                .requestMatchers("/api/portfolio/**").permitAll()
+                // Any other request
                 .anyRequest().permitAll()
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
