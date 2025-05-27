@@ -3,13 +3,16 @@ package com.property.controller;
 import com.property.dto.ProfileDetailsDto;
 import com.property.dto.ProfileDto;
 import com.property.entity.Profile;
+import com.property.entity.UserRole;
 import com.property.service.ProfileService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.UUID;
@@ -65,5 +68,29 @@ public class ProfileController {
         String email = authentication.getName();
         Profile profile = profileService.getProfileByEmail(email);
         return ResponseEntity.ok(profile);
+    }
+
+    @PostMapping("/{id}/set-admin")
+    public ResponseEntity<ProfileDto> setAdminRole(@PathVariable UUID id) {
+        try {
+            // Get the current profile as DTO
+            ProfileDto profileDto = profileService.getProfile(id);
+            
+            // Get the current profile entity for updating
+            Profile profile = profileService.getProfileByEmail(profileDto.getEmail());
+            
+            // Set role to ADMIN
+            profile.setRole(UserRole.ADMIN);
+            
+            // Update the profile
+            Profile updatedProfile = profileService.updateProfile(id, profile);
+            
+            // Return the updated profile as DTO
+            ProfileDto updatedDto = profileService.getProfile(id);
+            return ResponseEntity.ok(updatedDto);
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, 
+                "Failed to set admin role: " + e.getMessage(), e);
+        }
     }
 } 

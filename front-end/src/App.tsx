@@ -19,6 +19,7 @@ import NotFound from "./pages/NotFound";
 import AdminClientForm from "./pages/AdminClientForm";
 import HookTester from "./components/HookTester";
 import ModelingDashboard from "./pages/ModelingDashboard";
+import DatabaseTest from "./pages/DatabaseTest";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +48,7 @@ const App = () => (
             <Route path="/add-property" element={<AddProperty />} />
             <Route path="/assign-property" element={<AssignProperty />} />
             <Route path="/hooks-test" element={<HookTester />} />
+            <Route path="/database-test" element={<DatabaseTest />} />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

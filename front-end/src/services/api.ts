@@ -32,6 +32,26 @@ export interface AuthResponse {
     id?: string;
 }
 
+export interface ProfileDto {
+    id?: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    role?: string;
+    address?: string;
+    dateOfBirth?: string;
+    occupation?: string;
+    employer?: string;
+    employmentLength?: number;
+    employmentType?: string;
+    onProbation?: boolean;
+    maritalStatus?: string;
+    dependants?: number;
+    grossIncome?: number;
+    nonTaxableIncome?: number;
+}
+
 export interface Asset {
     id?: number;
     assetType: string;
@@ -492,6 +512,11 @@ const apiService = {
     // Fetch a user's portfolio (summary, properties, etc)
     getPortfolio: (userId: string): Promise<AxiosResponse<any>> => {
         return api.get(`/portfolio/${userId}`);
+    },
+    
+    // Set a user's role to ADMIN for testing
+    setAdminRole: (userId: string): Promise<AxiosResponse<ProfileDto>> => {
+        return api.post(`/profiles/${userId}/set-admin`);
     }
 };
 
