@@ -19,6 +19,7 @@
 /home/lachy/coding/property-path/back-end/src/main/java/com/property/security/ProfileSecurity.java
 /home/lachy/coding/property-path/back-end/src/main/java/com/property/dto/MortgageLeadDto.java
 /home/lachy/coding/property-path/back-end/src/main/java/com/property/service/ProfileService.java
+/home/lachy/coding/property-path/back-end/src/main/java/com/property/config/HibernateConfig.java
 /home/lachy/coding/property-path/back-end/src/main/java/com/property/entity/Asset.java
 /home/lachy/coding/property-path/back-end/src/main/java/com/property/entity/Liability.java
 /home/lachy/coding/property-path/back-end/src/main/java/com/property/service/impl/PortfolioServiceImpl.java
@@ -35,6 +36,7 @@
 /home/lachy/coding/property-path/back-end/src/main/java/com/property/service/impl/LiabilityServiceImpl.java
 /home/lachy/coding/property-path/back-end/src/main/java/com/property/security/JwtService.java
 /home/lachy/coding/property-path/back-end/src/main/java/com/property/Application.java
+/home/lachy/coding/property-path/back-end/src/main/java/com/property/entity/PostgreSQLEnumType.java
 /home/lachy/coding/property-path/back-end/src/main/java/com/property/controller/ProfileController.java
 /home/lachy/coding/property-path/back-end/src/main/java/com/property/dto/PropertyDTO.java
 /home/lachy/coding/property-path/back-end/src/main/java/com/property/service/LiabilityService.java
