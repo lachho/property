@@ -103,17 +103,23 @@ public class DiagnosticController {
         Map<String, Object> response = new HashMap<>();
         
         try {
+            System.out.println("Starting createTestAdmin request");
+            
             // Check if test admin already exists
+            System.out.println("Checking if admin exists");
             Optional<Profile> existingAdmin = profileRepository.findByEmail("admin@test.com");
             
             if (existingAdmin.isPresent()) {
+                System.out.println("Admin exists, updating if needed");
                 Profile admin = existingAdmin.get();
                 // Update role to ADMIN if needed
                 if (admin.getRole() != UserRole.ADMIN) {
+                    System.out.println("Updating role to ADMIN");
                     admin.setRole(UserRole.ADMIN);
                     profileRepository.save(admin);
                     response.put("message", "Existing user updated to ADMIN role");
                 } else {
+                    System.out.println("Admin already has ADMIN role");
                     response.put("message", "Admin user already exists");
                 }
                 response.put("userId", admin.getId().toString());
@@ -124,6 +130,7 @@ public class DiagnosticController {
             }
             
             // Create new admin user with all required fields
+            System.out.println("Creating new admin user");
             Profile adminProfile = new Profile();
             
             // Required personal details
@@ -149,6 +156,18 @@ public class DiagnosticController {
             
             // Required partner assessment
             adminProfile.setAssessWithPartner(false);
+            adminProfile.setPartnerFirstName("");
+            adminProfile.setPartnerLastName("");
+            adminProfile.setPartnerMobile("");
+            adminProfile.setPartnerAddress("");
+            adminProfile.setPartnerEmail("");
+            adminProfile.setPartnerOccupation("");
+            adminProfile.setPartnerEmployer("");
+            adminProfile.setPartnerEmploymentLength(0);
+            adminProfile.setPartnerEmploymentType("");
+            adminProfile.setPartnerOnProbation(false);
+            adminProfile.setPartnerIncome(new BigDecimal("0"));
+            adminProfile.setPartnerNonTaxableIncome(new BigDecimal("0"));
             
             // Initialize collections
             adminProfile.setPortfolios(new ArrayList<>());
@@ -172,7 +191,9 @@ public class DiagnosticController {
             adminProfile.setMaritalStatus("SINGLE");
             
             // Save profile
+            System.out.println("Saving admin profile to database");
             Profile savedProfile = profileRepository.save(adminProfile);
+            System.out.println("Admin profile saved successfully with ID: " + savedProfile.getId());
             
             response.put("status", "success");
             response.put("message", "Admin user created successfully");
@@ -181,14 +202,19 @@ public class DiagnosticController {
             response.put("role", savedProfile.getRole().name());
             response.put("instructions", "Use this admin account with the regular login endpoint: admin@test.com / password");
             
+            System.out.println("Returning successful response");
             return ResponseEntity.ok(response);
         } catch (Exception e) {
+            System.err.println("Error in createTestAdmin: " + e.getMessage());
+            e.printStackTrace();
+            
             response.put("status", "error");
             response.put("message", "Failed to create admin user");
             response.put("error", e.getMessage());
             
             // Add more detailed error information
             if (e.getCause() != null) {
+                System.err.println("Cause: " + e.getCause().getMessage());
                 response.put("cause", e.getCause().getMessage());
             }
             
