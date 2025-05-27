@@ -13,7 +13,7 @@ git pull
 
 # Build and start the containers
 echo "🚀 Building and starting containers..."
-docker-compose down
+docker-compose down -v
 docker-compose build
 docker-compose up -d
 
