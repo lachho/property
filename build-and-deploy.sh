@@ -73,10 +73,10 @@ echo -e "${GREEN}✓ Frontend build found in dist directory${NC}"
 
 # Step 4: Start Docker containers
 echo -e "${GREEN}Step 4: Starting containers...${NC}"
-docker compose down
+docker-compose down
 # We only need to build the backend container
-docker compose build backend
-docker compose up -d
+docker-compose build backend
+docker-compose up -d
 
 # Step 5: Wait for services to become healthy
 echo -e "${GREEN}Step 5: Waiting for services to become healthy...${NC}"
@@ -85,7 +85,7 @@ sleep 20
 
 # Step 6: Show status
 echo -e "${GREEN}Step 6: Checking container status...${NC}"
-docker compose ps
+docker-compose ps
 
 echo -e "${GREEN}=== Deployment completed ===${NC}"
 echo -e "Frontend: http://134.199.160.11:3001"

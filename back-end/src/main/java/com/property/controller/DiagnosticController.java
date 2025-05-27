@@ -95,6 +95,7 @@ public class DiagnosticController {
     
     /**
      * Create a test admin user directly (bypassing normal registration flow)
+     * This will properly set up a valid admin user that can be used by the frontend
      * @return Information about the created user
      */
     @PostMapping("/api/test/create-admin")
@@ -118,6 +119,7 @@ public class DiagnosticController {
                 response.put("userId", admin.getId().toString());
                 response.put("email", admin.getEmail());
                 response.put("role", admin.getRole().name());
+                response.put("token", "Use standard login endpoint with admin@test.com / password");
                 return ResponseEntity.ok(response);
             }
             
@@ -177,6 +179,7 @@ public class DiagnosticController {
             response.put("userId", savedProfile.getId().toString());
             response.put("email", savedProfile.getEmail());
             response.put("role", savedProfile.getRole().name());
+            response.put("instructions", "Use this admin account with the regular login endpoint: admin@test.com / password");
             
             return ResponseEntity.ok(response);
         } catch (Exception e) {

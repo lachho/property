@@ -522,28 +522,22 @@ const apiService = {
 
     // Create test admin user directly (diagnostic endpoint)
     createTestAdmin: (): Promise<AxiosResponse<any>> => {
-        return axios.post(`${API_URL}/test/create-admin`, {}, {
-            headers: { 'Content-Type': 'application/json' }
-        });
+        return api.post(`/test/create-admin`);
     },
 
     // Create test asset directly (diagnostic endpoint)
     createTestAsset: (): Promise<AxiosResponse<any>> => {
-        return axios.post(`${API_URL}/test/create-asset`, {}, {
-            headers: { 'Content-Type': 'application/json' }
-        });
+        return api.post(`/test/create-asset`);
     },
 
     // Create test liability directly (diagnostic endpoint)
     createTestLiability: (): Promise<AxiosResponse<any>> => {
-        return axios.post(`${API_URL}/test/create-liability`, {}, {
-            headers: { 'Content-Type': 'application/json' }
-        });
+        return api.post(`/test/create-liability`);
     },
 
     // Get diagnostic information
     getDiagnosticInfo: (): Promise<AxiosResponse<any>> => {
-        return axios.get(`${API_URL}/diagnostic`);
+        return api.get(`/diagnostic`);
     }
 };
 

@@ -24,14 +24,9 @@ public class AssetController {
     }
 
     @PostMapping
-    public ResponseEntity<Asset> createAsset(@RequestBody Asset asset) {
-        try {
-            Asset newAsset = assetService.createAsset(asset);
-            return ResponseEntity.ok(newAsset);
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw e;
-        }
+    @PreAuthorize("hasRole('ADMIN') or #profileId == authentication.principal.id")
+    public ResponseEntity<Asset> createAsset(@PathVariable UUID profileId, @RequestBody Asset asset) {
+        return ResponseEntity.ok(assetService.createAsset(profileId, asset));
     }
 
     @PutMapping("/{assetId}")

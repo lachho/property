@@ -259,30 +259,25 @@ const DatabaseTest = () => {
 
   const createTestAdmin = async () => {
     setIsLoading(true);
-    addLog('info', 'Creating test admin user directly...');
+    addLog('info', 'Creating test admin user...');
     
     try {
       const response = await apiService.createTestAdmin();
       
-      if (response.data && response.data.userId) {
+      if (response.data) {
         const userId = response.data.userId;
         const userEmail = response.data.email;
         const userRole = response.data.role;
         
-        addLog('success', `Test admin created successfully: ${userEmail} (${userRole})`, 
+        addLog('success', `Test admin user prepared: ${userEmail} (${userRole})`, 
           JSON.stringify(response.data, null, 2));
-        
-        // Store the token if it exists
-        if (response.data.accessToken) {
-          localStorage.setItem('token', response.data.accessToken);
-        }
         
         setTestResults(prev => ({ ...prev, adminCreation: true }));
         
-        // Continue with tests
-        await runAdditionalTests(userId);
+        // Login with the admin credentials
+        await loginWithAdmin();
       } else {
-        addLog('info', 'Response received but no user ID found', 
+        addLog('info', 'Response received but no user data found', 
           JSON.stringify(response.data, null, 2));
       }
     } catch (error: any) {
@@ -290,68 +285,86 @@ const DatabaseTest = () => {
         ? JSON.stringify(error.response.data, null, 2) 
         : error.message || 'Unknown error';
       
-      addLog('error', 'Failed to create test admin directly', errorDetails);
+      addLog('error', 'Failed to create test admin', errorDetails);
       setTestResults(prev => ({ ...prev, adminCreation: false }));
     } finally {
       setIsLoading(false);
     }
   };
 
+  const loginWithAdmin = async () => {
+    try {
+      addLog('info', 'Logging in with admin credentials (admin@test.com)...');
+      
+      const loginResponse = await apiService.login({
+        email: 'admin@test.com',
+        password: 'password'
+      });
+      
+      if (loginResponse.data && loginResponse.data.accessToken) {
+        localStorage.setItem('token', loginResponse.data.accessToken);
+        
+        addLog('success', 'Admin login successful', 
+          JSON.stringify(loginResponse.data, null, 2));
+        
+        // Continue with tests using the authenticated admin
+        await runAdditionalTests(loginResponse.data.id);
+      } else {
+        addLog('error', 'Login response missing token or user ID', 
+          JSON.stringify(loginResponse.data, null, 2));
+      }
+    } catch (error: any) {
+      const errorDetails = error.response?.data 
+        ? JSON.stringify(error.response.data, null, 2) 
+        : error.message || 'Unknown error';
+      
+      addLog('error', 'Admin login failed', errorDetails);
+    }
+  };
+
   const runAdditionalTests = async (profileId: string) => {
-    // Create a test asset directly
-    await createDirectTestAsset();
-    
-    // Create a test liability directly
-    await createDirectTestLiability();
-    
-    // Update the profile
-    await updateProfile(profileId);
-  };
-
-  const createDirectTestAsset = async () => {
     try {
-      addLog('info', 'Creating test asset directly...');
+      // Use the direct test endpoints that bypass authentication
+      addLog('info', 'Creating test asset using direct endpoint...');
+      const assetResponse = await apiService.createTestAsset();
+      if (assetResponse.data && assetResponse.data.status === 'success') {
+        addLog('success', 'Test asset created successfully', 
+          JSON.stringify(assetResponse.data, null, 2));
+        setTestResults(prev => ({ ...prev, assetCreation: true }));
+      }
       
-      const response = await apiService.createTestAsset();
+      addLog('info', 'Creating test liability using direct endpoint...');
+      const liabilityResponse = await apiService.createTestLiability();
+      if (liabilityResponse.data && liabilityResponse.data.status === 'success') {
+        addLog('success', 'Test liability created successfully', 
+          JSON.stringify(liabilityResponse.data, null, 2));
+        setTestResults(prev => ({ ...prev, liabilityCreation: true }));
+      }
       
-      addLog('success', 'Test asset created directly', 
-        JSON.stringify(response.data, null, 2));
-      setTestResults(prev => ({ ...prev, assetCreation: true }));
-      
-      return response.data;
+      // Try to update profile if we have an admin token
+      if (localStorage.getItem('token')) {
+        await updateProfile(profileId);
+      }
     } catch (error: any) {
       const errorDetails = error.response?.data 
         ? JSON.stringify(error.response.data, null, 2) 
         : error.message || 'Unknown error';
       
-      addLog('error', 'Failed to create test asset directly', errorDetails);
-      setTestResults(prev => ({ ...prev, assetCreation: false }));
-      
-      return null;
+      addLog('error', 'Error in additional tests', errorDetails);
+      console.error('Additional tests error:', error);
     }
   };
 
-  const createDirectTestLiability = async () => {
-    try {
-      addLog('info', 'Creating test liability directly...');
-      
-      const response = await apiService.createTestLiability();
-      
-      addLog('success', 'Test liability created directly', 
-        JSON.stringify(response.data, null, 2));
-      setTestResults(prev => ({ ...prev, liabilityCreation: true }));
-      
-      return response.data;
-    } catch (error: any) {
-      const errorDetails = error.response?.data 
-        ? JSON.stringify(error.response.data, null, 2) 
-        : error.message || 'Unknown error';
-      
-      addLog('error', 'Failed to create test liability directly', errorDetails);
-      setTestResults(prev => ({ ...prev, liabilityCreation: false }));
-      
-      return null;
-    }
+  const testCreateAdmin = async () => {
+    setIsLoading(true);
+    await createTestAdmin();
+    setIsLoading(false);
+  };
+
+  const testLoginWithAdmin = async () => {
+    setIsLoading(true);
+    await loginWithAdmin();
+    setIsLoading(false);
   };
 
   const runAllTests = async () => {
@@ -368,7 +381,7 @@ const DatabaseTest = () => {
         adminRoleSet: null,
       });
       
-      // Step 1: Try using direct diagnostic endpoint to create admin
+      // Step 1: Create admin user
       await createTestAdmin();
       
       addLog('info', 'All tests completed');
@@ -460,7 +473,7 @@ const DatabaseTest = () => {
         </p>
         <div className="flex flex-wrap gap-2">
           <Button 
-            onClick={createTestAdmin} 
+            onClick={testCreateAdmin} 
             disabled={isLoading} 
             variant="outline"
             size="sm"
@@ -468,20 +481,12 @@ const DatabaseTest = () => {
             Create Admin User
           </Button>
           <Button 
-            onClick={createDirectTestAsset} 
+            onClick={testLoginWithAdmin} 
             disabled={isLoading} 
             variant="outline"
             size="sm"
           >
-            Create Test Asset
-          </Button>
-          <Button 
-            onClick={createDirectTestLiability} 
-            disabled={isLoading} 
-            variant="outline"
-            size="sm"
-          >
-            Create Test Liability
+            Login as Admin
           </Button>
           <Button 
             onClick={getDiagnosticInfo} 
