@@ -1,11 +1,19 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 
-// Try both paths - some Spring Boot configurations use /api prefix, others don't
+// The backend expects requests with '/api' prefix as seen in all controllers
+// e.g. @RequestMapping("/api/auth")
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://backend:8080';
-const API_URL = `${API_BASE_URL}/api`;
+const API_URL = API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`;
 
 // Enable debugging to see request/response data
 const DEBUG = true;
+
+// Log the configured URLs for debugging
+console.log('API Configuration:', { 
+  API_BASE_URL, 
+  API_URL, 
+  VITE_API_URL: import.meta.env.VITE_API_URL 
+});
 
 // Request interfaces
 export interface LoginRequest {
@@ -238,6 +246,31 @@ api.interceptors.response.use(null, async (error) => {
 
 // API Service
 const apiService = {
+    // Test API endpoints for connectivity
+    testEndpoints: async (): Promise<{[key: string]: boolean}> => {
+        const results: {[key: string]: boolean} = {};
+        
+        // Test functions
+        const testEndpoint = async (url: string, method: string = 'GET') => {
+            try {
+                await fetch(url, { method });
+                return true;
+            } catch (e) {
+                console.error(`Failed to connect to ${url}:`, e);
+                return false;
+            }
+        };
+        
+        // Test API endpoints
+        results.baseUrl = await testEndpoint(API_BASE_URL);
+        results.apiRoot = await testEndpoint(`${API_URL}`);
+        results.authEndpoint = await testEndpoint(`${API_URL}/auth/test`);
+        results.profilesEndpoint = await testEndpoint(`${API_URL}/profiles`);
+        results.diagnosticEndpoint = await testEndpoint(`${API_URL}/diagnostic`);
+        
+        return results;
+    },
+
     // Auth endpoints
     login: (data: LoginRequest): Promise<AxiosResponse<AuthResponse>> => {
         console.log('Login request:', data);
@@ -253,35 +286,19 @@ const apiService = {
             }
             return 'Login failed';
         };
-        
-        // First try with API_URL (includes /api prefix)
+
         return api.post('/auth/login', data)
             .then(response => {
-                console.log('Login successful response:', response.data);
+                console.log('Login successful:', response.data);
                 return response;
             })
             .catch(error => {
-                console.error('Login error with /api/auth/login:', {
+                console.error('Login failed:', {
                     message: error.message,
                     status: error.response?.status,
                     data: error.response?.data
                 });
                 
-                // Try direct endpoint without /api prefix
-                return axios.post(`${API_BASE_URL}/auth/login`, data, {
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-            })
-            .catch(error => {
-                console.error('Login error with /auth/login:', {
-                    message: error.message,
-                    status: error.response?.status,
-                    data: error.response?.data
-                });
-                
-                // Provide meaningful error info back to user
                 error.displayMessage = formatErrorMessage(error);
                 throw error;
             });
@@ -301,35 +318,19 @@ const apiService = {
             }
             return 'Registration failed';
         };
-        
-        // First try with API_URL (includes /api prefix)
+
         return api.post('/auth/register', data)
             .then(response => {
-                console.log('Registration successful response:', response.data);
+                console.log('Registration successful:', response.data);
                 return response;
             })
             .catch(error => {
-                console.error('Registration error with /api/auth/register:', {
+                console.error('Registration failed:', {
                     message: error.message,
                     status: error.response?.status,
                     data: error.response?.data
                 });
                 
-                // Try direct endpoint without /api prefix
-                return axios.post(`${API_BASE_URL}/auth/register`, data, {
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-            })
-            .catch(error => {
-                console.error('Registration error with /auth/register:', {
-                    message: error.message,
-                    status: error.response?.status, 
-                    data: error.response?.data
-                });
-                
-                // Provide meaningful error info back to user
                 error.displayMessage = formatErrorMessage(error);
                 throw error;
             });

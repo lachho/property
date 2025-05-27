@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import apiService, { RegisterRequest, Profile, Asset, Liability, ProfileDto } from '../services/api';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,11 +30,24 @@ const DatabaseTest = () => {
     profileUpdate: null,
     adminRoleSet: null,
   });
+  const [apiBaseUrl, setApiBaseUrl] = useState<string>('');
+  const [apiEndpoint, setApiEndpoint] = useState<string>('');
 
   const addLog = (type: 'info' | 'success' | 'error', message: string, details?: string) => {
     const timestamp = new Date().toISOString();
     setLogs(prevLogs => [{ timestamp, type, message, details }, ...prevLogs]);
   };
+
+  useEffect(() => {
+    // Display current API configuration for debugging
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://backend:8080';
+    const apiUrl = `${baseUrl}/api`;
+    setApiBaseUrl(baseUrl);
+    setApiEndpoint(apiUrl);
+    
+    addLog('info', 'API Configuration', 
+      `Base URL: ${baseUrl}\nAPI URL: ${apiUrl}`);
+  }, []);
 
   const createAdminUser = async () => {
     try {
@@ -280,6 +293,33 @@ const DatabaseTest = () => {
       <Badge variant="destructive">Failed</Badge>;
   };
 
+  const testApiEndpoint = async () => {
+    setIsLoading(true);
+    addLog('info', 'Testing API endpoints...');
+    
+    try {
+      // Use the API service to test all endpoints
+      const results = await apiService.testEndpoints();
+      
+      // Log the results
+      addLog('success', 'API endpoint tests completed', 
+        JSON.stringify(results, null, 2));
+        
+      // Detailed logs for each endpoint
+      for (const [endpoint, result] of Object.entries(results)) {
+        if (result) {
+          addLog('success', `Endpoint ${endpoint} is accessible`);
+        } else {
+          addLog('error', `Endpoint ${endpoint} is not accessible`);
+        }
+      }
+    } catch (error: any) {
+      addLog('error', 'Error during API endpoint tests', error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="container mx-auto py-8 px-4">
       <h1 className="text-3xl font-bold mb-6">Database Permission Test</h1>
@@ -287,6 +327,30 @@ const DatabaseTest = () => {
         This page tests database write permissions by creating an admin user and test data.
         Check the logs below for detailed error information.
       </p>
+      
+      <div className="bg-gray-100 p-4 rounded-md mb-6">
+        <h2 className="text-lg font-semibold mb-2">API Configuration</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <span className="block text-sm font-medium text-gray-700">Base URL:</span>
+            <code className="block bg-gray-200 p-2 rounded text-sm">{apiBaseUrl}</code>
+          </div>
+          <div>
+            <span className="block text-sm font-medium text-gray-700">API URL:</span>
+            <code className="block bg-gray-200 p-2 rounded text-sm">{apiEndpoint}</code>
+          </div>
+        </div>
+        <div className="mt-4">
+          <Button 
+            onClick={testApiEndpoint} 
+            disabled={isLoading} 
+            variant="outline"
+            className="mr-2"
+          >
+            Test API Endpoints
+          </Button>
+        </div>
+      </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-1">
@@ -394,10 +458,33 @@ const DatabaseTest = () => {
       <div className="mt-8">
         <Card>
           <CardHeader>
-            <CardTitle>Troubleshooting Database Permissions</CardTitle>
+            <CardTitle>Troubleshooting API Connection & Database Permissions</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-medium">API Connection Issues</h3>
+                <ul className="list-disc ml-6 mt-2">
+                  <li>API URL configuration is incorrect</li>
+                  <li>Server is not running or not accessible</li>
+                  <li>Networking/firewall issues blocking connections</li>
+                  <li>CORS configuration preventing requests</li>
+                  <li>Reverse proxy/load balancer misconfiguration</li>
+                </ul>
+              </div>
+              
+              <div>
+                <h3 className="text-lg font-medium">API URL Configuration Fix</h3>
+                <pre className="bg-gray-50 p-3 rounded text-sm mt-2 overflow-x-auto">
+{`// Update .env file or environment variables
+VITE_API_URL=https://your-actual-server-url.com
+
+// If using context paths, make sure they match the server configuration
+// For Spring Boot with servlet context path:
+server.servlet.context-path=/api`}
+                </pre>
+              </div>
+              
               <div>
                 <h3 className="text-lg font-medium">Common Permission Issues</h3>
                 <ul className="list-disc ml-6 mt-2">
