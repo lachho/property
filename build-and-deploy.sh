@@ -7,31 +7,26 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-echo -e "${YELLOW}=== Building Property App ===${NC}"
+echo -e "${YELLOW}=== Deploying Property App ===${NC}"
 
-# Step 1: Build the frontend locally
-echo -e "${GREEN}Step 1: Building frontend locally...${NC}"
-cd front-end
-npm install
-npm run build
-if [ ! -d "dist" ]; then
-  echo -e "${RED}Frontend build failed! Check for errors above.${NC}"
+# Step 1: Pull latest changes from git
+echo -e "${GREEN}Step 1: Pulling latest changes...${NC}"
+git pull
+
+# Step 2: Verify dist directory exists
+echo -e "${GREEN}Step 2: Verifying frontend build exists...${NC}"
+if [ ! -d "front-end/dist" ]; then
+  echo -e "${RED}Error: front-end/dist directory not found!${NC}"
+  echo -e "${RED}Make sure to build the frontend locally and commit the dist folder before deploying.${NC}"
   exit 1
 fi
-cd ..
+echo -e "${GREEN}✓ Frontend build found in dist directory${NC}"
 
-# Step 2: Pull latest changes (if in a git repo)
-echo -e "${GREEN}Step 2: Pulling latest changes...${NC}"
-if [ -d ".git" ]; then
-  git pull
-else
-  echo "Not a git repository, skipping git pull"
-fi
-
-# Step 3: Build and start Docker containers
-echo -e "${GREEN}Step 3: Building and starting containers...${NC}"
+# Step 3: Start Docker containers
+echo -e "${GREEN}Step 3: Starting containers...${NC}"
 docker compose down
-docker compose build
+# We only need to build the backend container
+docker compose build backend
 docker compose up -d
 
 # Step 4: Wait for services to become healthy
