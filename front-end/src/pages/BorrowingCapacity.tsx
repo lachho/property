@@ -97,33 +97,53 @@ const BorrowingCapacity = () => {
   };
 
   const handleGetReportClick = () => {
-    // Show lead form inside the dialog
+    // Reset the lead form before showing it
+    leadForm.reset();
+    setShowResults(true);
   };
 
   const handleLeadSubmit = async (data: z.infer<typeof leadFormSchema>) => {
     setIsSubmitting(true);
     try {
+      // Get form values and validate them
+      const formValues = form.getValues();
+      if (!formValues.grossIncome || !formValues.maritalStatus) {
+        throw new Error('Please complete the borrowing capacity form first');
+      }
+
       // Compose the payload for submitBorrowingLead
       const payload = {
         firstName: data.name.split(' ')[0],
         lastName: data.name.split(' ').slice(1).join(' '),
         email: data.email,
         phone: data.phone,
-        grossIncome: form.getValues('grossIncome'),
-        partnerIncome: form.getValues('partnerIncome') || null,
-        dependants: form.getValues('dependants'),
-        existingLoans: form.getValues('existingLoans'),
-        maritalStatus: form.getValues('maritalStatus'),
+        grossIncome: formValues.grossIncome,
+        partnerIncome: formValues.partnerIncome || null,
+        dependants: formValues.dependants,
+        existingLoans: formValues.existingLoans,
+        maritalStatus: formValues.maritalStatus,
         borrowingCapacity: borrowingCapacity
       };
-      await apiService.submitBorrowingLead(payload);
+
+      console.log('Submitting borrowing lead:', payload);
+      
+      const response = await apiService.submitBorrowingLead(payload);
+      console.log('Lead submission response:', response.data);
+
       toast({
         title: 'Success!',
         description: 'Your report will be emailed to you shortly.'
       });
+
+      // Reset forms and close dialog
+      form.reset();
+      leadForm.reset();
       setShowResults(false);
+      setFormStep(3); // Show success message
+      
       return true;
     } catch (error: any) {
+      console.error('Error submitting lead:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -300,7 +320,7 @@ const BorrowingCapacity = () => {
                             Submitting...
                           </>
                         ) : (
-                          "Get Your Free Customized Report"
+                          "Get Your Free Customised Report"
                         )}
                       </Button>
                     </form>
