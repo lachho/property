@@ -187,12 +187,12 @@ const api: AxiosInstance = axios.create({
         'Content-Type': 'application/json',
     },
     withCredentials: false,
-    timeout: 10000, // 10 second timeout
+    timeout: 30000, // Increased to 30 seconds for startup
 });
 
 // Add retry configuration to the instance
-(api as any).defaults.retry = 3;
-(api as any).defaults.retryDelay = 1000;
+(api as any).defaults.retry = 5; // Increased retries
+(api as any).defaults.retryDelay = 3000; // Increased delay between retries
 
 // Log URL for debugging
 console.log('API URL configured as:', API_URL);
@@ -220,7 +220,7 @@ api.interceptors.request.use(
     }
 );
 
-// Add retry interceptor
+// Add retry interceptor with better error handling
 api.interceptors.response.use(null, async (error) => {
     const { config } = error;
     if (!config || !config.retry) {
@@ -230,12 +230,15 @@ api.interceptors.response.use(null, async (error) => {
     config.retryCount = config.retryCount || 0;
     
     if (config.retryCount >= config.retry) {
+        console.error(`Failed after ${config.retry} retries:`, error.message);
         return Promise.reject(error);
     }
     
     config.retryCount += 1;
+    console.log(`Retrying request (${config.retryCount}/${config.retry})...`);
+    
     const delayRetry = new Promise(resolve => {
-        setTimeout(resolve, config.retryDelay || 1000);
+        setTimeout(resolve, config.retryDelay || 3000);
     });
     
     await delayRetry;
