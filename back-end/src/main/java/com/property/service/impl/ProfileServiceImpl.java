@@ -47,9 +47,6 @@ public class ProfileServiceImpl implements ProfileService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    @Autowired
-    private PortfolioService portfolioService;
-
     private Profile getProfileEntity(UUID id) {
         return profileRepository.findByIdWithPortfolios(id)
                 .orElseThrow(() -> new RuntimeException("Profile not found with id: " + id));

@@ -82,9 +82,6 @@ public class ProfileController {
             // Set role to ADMIN
             profile.setRole(UserRole.ADMIN);
             
-            // Update the profile
-            Profile updatedProfile = profileService.updateProfile(id, profile);
-            
             // Return the updated profile as DTO
             ProfileDto updatedDto = profileService.getProfile(id);
             return ResponseEntity.ok(updatedDto);

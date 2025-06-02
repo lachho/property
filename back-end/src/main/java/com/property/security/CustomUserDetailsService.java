@@ -1,6 +1,5 @@
 package com.property.security;
 
-import com.property.entity.Profile;
 import com.property.repository.ProfileRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
