@@ -234,13 +234,11 @@ api.interceptors.response.use(null, async (error) => {
     }
     
     config.retryCount += 1;
-    const backoff = new Promise(resolve => {
-        setTimeout(() => {
-            resolve(null);
-        }, config.retryDelay || 1000);
+    const delayRetry = new Promise(resolve => {
+        setTimeout(resolve, config.retryDelay || 1000);
     });
     
-    await backoff;
+    await delayRetry;
     return api(config);
 });
 
@@ -538,6 +536,16 @@ const apiService = {
     // Get diagnostic information
     getDiagnosticInfo: (): Promise<AxiosResponse<any>> => {
         return api.get(`/diagnostic`);
+    },
+
+    testConnection: async () => {
+        try {
+            const response = await api.get('/health');
+            return response.data;
+        } catch (error) {
+            console.error('API Connection Test Failed:', error);
+            throw error;
+        }
     }
 };
 
