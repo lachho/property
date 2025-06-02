@@ -42,6 +42,19 @@ public class DiagnosticController {
     private LiabilityService liabilityService;
 
     /**
+     * Health check endpoint
+     * @return Simple health status response
+     */
+    @GetMapping("/api/health")
+    public ResponseEntity<Map<String, Object>> healthCheck() {
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", "ok");
+        response.put("message", "API is healthy");
+        response.put("timestamp", System.currentTimeMillis());
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * Test endpoint at the root path
      * @return Simple JSON response
      */
