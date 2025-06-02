@@ -39,19 +39,27 @@ public class SecurityConfig {
                 .requestMatchers("/auth/**").permitAll()
                 .requestMatchers("/").permitAll()
                 .requestMatchers("/api").permitAll()
-                .requestMatchers("/api/test/**").permitAll()
+                .requestMatchers("/api/health").permitAll()
                 .requestMatchers("/api/diagnostic").permitAll()
-                // For testing purposes, allow all endpoints
-                // In production, you should restrict these endpoints appropriately
-                .requestMatchers("/api/profiles/**").permitAll()
-                .requestMatchers("/api/properties/**").permitAll()
-                .requestMatchers("/api/assets/**").permitAll()
-                .requestMatchers("/api/liabilities/**").permitAll()
+                
+                // Lead generation endpoints - public
                 .requestMatchers("/api/mortgage-leads/**").permitAll()
                 .requestMatchers("/api/borrowing-leads/**").permitAll()
-                .requestMatchers("/api/portfolio/**").permitAll()
+                
+                // Property browsing - public
+                .requestMatchers("/api/properties/**").permitAll()
+                
+                // Admin only endpoints
+                .requestMatchers("/api/test/**").hasRole("ADMIN")
+                
+                // Protected endpoints - require authentication
+                .requestMatchers("/api/profiles/**").authenticated()
+                .requestMatchers("/api/assets/**").authenticated()
+                .requestMatchers("/api/liabilities/**").authenticated()
+                .requestMatchers("/api/portfolio/**").authenticated()
+                
                 // Any other request
-                .anyRequest().permitAll()
+                .anyRequest().authenticated()
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

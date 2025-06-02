@@ -25,37 +25,37 @@ public class ProfileController {
     private ProfileService profileService;
 
     @GetMapping("/{id}")
-    // @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.id")
+    @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.id")
     public ResponseEntity<ProfileDto> getProfile(@PathVariable UUID id) {
         return ResponseEntity.ok(profileService.getProfile(id));
     }
 
     @GetMapping
-    // @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<ProfileDto>> getAllProfiles() {
         return ResponseEntity.ok(profileService.getAllProfiles());
     }
 
     @PutMapping("/{id}")
-    // @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.id")
+    @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.id")
     public ResponseEntity<Profile> updateProfile(@PathVariable UUID id, @RequestBody Profile profile) {
         return ResponseEntity.ok(profileService.updateProfile(id, profile));
     }
 
     @PutMapping("/{id}/details")
-    // @PreAuthorize("hasRole('ADMIN') or @profileSecurity.isOwner(#id, authentication)")
+    @PreAuthorize("hasRole('ADMIN') or @profileSecurity.isOwner(#id, authentication)")
     public ResponseEntity<ProfileDetailsDto> updateProfileDetails(@PathVariable UUID id, @RequestBody ProfileDetailsDto profileDetails) {
         return ResponseEntity.ok(profileService.updateProfileDetails(id, profileDetails));
     }
 
     @GetMapping("/{id}/details")
-    // @PreAuthorize("hasRole('ADMIN') or @profileSecurity.isOwner(#id, authentication)")
+    @PreAuthorize("hasRole('ADMIN') or @profileSecurity.isOwner(#id, authentication)")
     public ResponseEntity<ProfileDetailsDto> getProfileDetails(@PathVariable UUID id) {
         return ResponseEntity.ok(profileService.getProfileDetails(id));
     }
 
     @DeleteMapping("/{id}")
-    // @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteProfile(@PathVariable UUID id) {
         profileService.deleteProfile(id);
         return ResponseEntity.ok().build();

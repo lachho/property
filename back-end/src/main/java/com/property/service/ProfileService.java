@@ -1,6 +1,7 @@
 package com.property.service;
 
 import com.property.dto.MortgageLeadDto;
+import com.property.dto.BorrowingLeadDto;
 import com.property.dto.ProfileDetailsDto;
 import com.property.dto.ProfileDto;
 import com.property.entity.Profile;
@@ -20,6 +21,7 @@ public interface ProfileService {
     ProfileDetailsDto getProfileDetails(UUID id);
     ProfileDetailsDto updateProfileDetails(UUID id, ProfileDetailsDto profileDetails);
     
-    // Method to create profile from mortgage calculator lead
+    // Methods to create profiles from leads
     Profile createProfileFromMortgageLead(MortgageLeadDto leadDto);
+    Profile createProfileFromBorrowingLead(BorrowingLeadDto leadDto);
 } 

@@ -1,6 +1,7 @@
 package com.property.service.impl;
 
 import com.property.dto.MortgageLeadDto;
+import com.property.dto.BorrowingLeadDto;
 import com.property.dto.ProfileDetailsDto;
 import com.property.dto.ProfileDto;
 import com.property.entity.Profile;
@@ -216,6 +217,58 @@ public class ProfileServiceImpl implements ProfileService {
     private String generateTemporaryPassword() {
         // Generate a random temporary password
         return UUID.randomUUID().toString().substring(0, 12);
+    }
+
+    @Override
+    @Transactional
+    public Profile createProfileFromBorrowingLead(BorrowingLeadDto leadDto) {
+        // Check if a profile with this email already exists
+        Optional<Profile> existingProfile = profileRepository.findByEmail(leadDto.getEmail());
+        
+        if (existingProfile.isPresent()) {
+            // Update existing profile with lead information
+            Profile profile = existingProfile.get();
+            profile.setFirstName(leadDto.getFirstName());
+            profile.setLastName(leadDto.getLastName());
+            profile.setPhone(leadDto.getPhone());
+            
+            // Update borrowing-related fields if provided
+            if (leadDto.getGrossIncome() != null) {
+                profile.setGrossIncome(BigDecimal.valueOf(leadDto.getGrossIncome()));
+            }
+            if (leadDto.getExistingLoans() != null) {
+                profile.setExistingLoans(BigDecimal.valueOf(leadDto.getExistingLoans()));
+            }
+            if (leadDto.getMaritalStatus() != null) {
+                profile.setMaritalStatus(leadDto.getMaritalStatus());
+            }
+            
+            return profileRepository.save(profile);
+        } else {
+            // Create a new basic profile from lead information
+            Profile newProfile = Profile.builder()
+                    .firstName(leadDto.getFirstName())
+                    .lastName(leadDto.getLastName())
+                    .email(leadDto.getEmail())
+                    .phone(leadDto.getPhone())
+                    .role(UserRole.CLIENT)
+                    // Set a default temporary password (should be changed later)
+                    .password(passwordEncoder.encode(generateTemporaryPassword()))
+                    .build();
+            
+            // Set borrowing-related fields if provided
+            if (leadDto.getGrossIncome() != null) {
+                newProfile.setGrossIncome(BigDecimal.valueOf(leadDto.getGrossIncome()));
+            }
+            if (leadDto.getExistingLoans() != null) {
+                newProfile.setExistingLoans(BigDecimal.valueOf(leadDto.getExistingLoans()));
+            }
+            if (leadDto.getMaritalStatus() != null) {
+                newProfile.setMaritalStatus(leadDto.getMaritalStatus());
+            }
+            
+            return profileRepository.save(newProfile);
+        }
     }
 
     private ProfileDto toDto(Profile profile) {
