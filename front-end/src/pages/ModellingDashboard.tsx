@@ -7,11 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, LineChart, PieChart, Calculator, FileText, Building2, TrendingDown, BriefcaseBusiness } from 'lucide-react';
-import SinglePropertyTab from '@/components/modeling/SinglePropertyTab';
-import PortfolioTab from '@/components/modeling/PortfolioTab';
-import NegativeGearingTab from '@/components/modeling/NegativeGearingTab';
+import SinglePropertyTab from '@/components/modelling/SinglePropertyTab';
+import PortfolioTab from '@/components/modelling/PortfolioTab';
+import NegativeGearingTab from '@/components/modelling/NegativeGearingTab';
 
-const ModelingDashboard = () => {
+const ModellingDashboard = () => {
   const { user, profile, isLoading } = useAuth();
   const navigate = useNavigate();
 
@@ -22,16 +22,12 @@ const ModelingDashboard = () => {
         <main className="flex-grow flex items-center justify-center">
           <div className="flex flex-col items-center justify-center gap-4">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-lg">Loading modeling dashboard...</p>
+            <p className="text-lg">Loading modelling dashboard...</p>
           </div>
         </main>
         <Footer />
       </div>
     );
-  }
-
-  if (!user) {
-    return null; // Will redirect in useEffect
   }
 
   return (
@@ -41,7 +37,7 @@ const ModelingDashboard = () => {
         <div className="container mx-auto px-4">
           <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold mb-2">Investment Modeling Dashboard</h1>
+              <h1 className="text-3xl font-bold mb-2">Investment Modelling Dashboard</h1>
               <p className="text-gray-600">
                 Explore different property investment scenarios and their potential outcomes
               </p>
@@ -204,4 +200,4 @@ const ModelingDashboard = () => {
   );
 };
 
-export default ModelingDashboard; 
+export default ModellingDashboard; 

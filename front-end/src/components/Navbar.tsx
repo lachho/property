@@ -33,6 +33,12 @@ const Navbar = () => {
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center space-x-8">
+          <Link to="/" className="text-gray-800 hover:text-theme-blue font-medium transition-colors">
+            Home
+          </Link>
+          <Link to="/modelling-dashboard" className="text-gray-800 hover:text-theme-blue font-medium transition-colors">
+            Modelling Dashboard
+          </Link>
           <Link to="/borrowing-capacity" className="text-gray-800 hover:text-theme-blue font-medium transition-colors">
             Borrowing Capacity
           </Link>
@@ -79,6 +85,20 @@ const Navbar = () => {
       {isMenuOpen && (
         <div className="md:hidden bg-white absolute top-16 left-0 right-0 shadow-md z-50">
           <div className="container-custom py-4 flex flex-col space-y-4">
+            <Link 
+              to="/" 
+              className="text-gray-800 hover:text-theme-blue font-medium transition-colors p-2"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Home
+            </Link>
+            <Link 
+              to="/modelling-dashboard" 
+              className="text-gray-800 hover:text-theme-blue font-medium transition-colors p-2"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Modelling Dashboard
+            </Link>
             <Link 
               to="/borrowing-capacity" 
               className="text-gray-800 hover:text-theme-blue font-medium transition-colors p-2"

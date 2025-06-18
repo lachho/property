@@ -178,9 +178,9 @@ const ClientDashboard = () => {
               </p>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => navigate('/modeling')}>
+              <Button variant="outline" onClick={() => navigate('/modelling-dashboard')}>
                 <LineChart className="w-4 h-4 mr-2" />
-                Modeling Dashboard
+                Modelling Dashboard
               </Button>
               <Button variant="outline" onClick={() => setShowEditForm(true)}>
                 Edit Details

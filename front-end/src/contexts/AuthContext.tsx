@@ -43,6 +43,7 @@ interface AuthContextType {
   signUp: (firstName: string, lastName: string, email: string, password: string, phone: string) => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (data: Partial<Profile>) => Promise<void>;
+  signInAsDemoUser: (role: 'ADMIN' | 'CLIENT') => void;
   autoLoginAsAdmin: () => Promise<void>;
 }
 
@@ -136,6 +137,66 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const signInAsDemoUser = (role: 'ADMIN' | 'CLIENT') => {
+    setIsLoading(true);
+    const isClient = role === 'CLIENT';
+    const demoUser: User = {
+      id: isClient ? 'demo-client-id' : 'demo-admin-id',
+      email: isClient ? 'client@demo.com' : 'admin@demo.com',
+      role: role,
+      firstName: 'Demo',
+      lastName: isClient ? 'Client' : 'Admin',
+    };
+    const demoProfile: Profile = {
+      id: demoUser.id || '',
+      email: demoUser.email,
+      role: demoUser.role,
+      firstName: demoUser.firstName,
+      lastName: demoUser.lastName,
+      phone: '0412345678',
+      address: '123 Demo Street',
+      dateOfBirth: null,
+      occupation: 'Developer',
+      employer: 'DemoCorp',
+      employmentLength: 2,
+      employmentType: 'Full-time',
+      onProbation: false,
+      grossIncome: 100000,
+      nonTaxableIncome: 0,
+      assessWithPartner: false,
+      partnerFirstName: '',
+      partnerLastName: '',
+      partnerDob: null,
+      partnerMobile: '',
+      partnerAddress: '',
+      partnerEmail: '',
+      partnerOccupation: '',
+      partnerEmployer: '',
+      partnerEmploymentLength: 0,
+      partnerEmploymentType: '',
+      partnerOnProbation: false,
+      partnerIncome: 0,
+      partnerNonTaxableIncome: 0,
+      isRenting: false,
+      rentPerWeek: 0,
+      monthlyLivingExpenses: 2000,
+      residenceHistory: '',
+      dependants: 0,
+      dependantsAgeRanges: '',
+      retirementPassiveIncomeGoal: 50000,
+      desiredRetirementAge: 65,
+      existingLoans: 0,
+      maritalStatus: 'Single',
+      assets: [],
+      liabilities: [],
+    };
+
+    setUser(demoUser);
+    setProfile(demoProfile);
+    localStorage.setItem('isDemoUser', 'true');
+    setIsLoading(false);
   };
 
   const signIn = async (email: string, password: string): Promise<void> => {
@@ -258,23 +319,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async (): Promise<void> => {
-    setIsLoading(true);
+    console.log("Signing out");
     try {
-      console.log("Signing out");
-      
-      // Clear tokens
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      
-      // Clear state
+      const refreshToken = localStorage.getItem('refreshToken');
+      if (refreshToken) {
+        // await apiService.logout(refreshToken);
+      }
+    } catch (error) {
+      console.error("Error during server-side logout:", error);
+    } finally {
+      // Clear user state and tokens
       setUser(null);
       setProfile(null);
-      
-      console.log("Sign out successful");
-    } catch (error: any) {
-      console.error("Error signing out:", error.message);
-    } finally {
-      setIsLoading(false);
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('isDemoUser');
+      toast({
+        title: "Signed Out",
+        description: "You have been successfully signed out"
+      });
     }
   };
 
@@ -352,6 +415,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     signUp,
     signOut,
     updateProfile,
+    signInAsDemoUser,
     autoLoginAsAdmin,
   };
 

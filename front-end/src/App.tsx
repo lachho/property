@@ -18,7 +18,7 @@ import AssignProperty from "./pages/AssignProperty";
 import NotFound from "./pages/NotFound";
 import AdminClientForm from "./pages/AdminClientForm";
 import HookTester from "./components/HookTester";
-import ModelingDashboard from "./pages/ModelingDashboard";
+import ModellingDashboard from "./pages/ModellingDashboard";
 import DatabaseTest from "./pages/DatabaseTest";
 
 const queryClient = new QueryClient();
@@ -35,10 +35,10 @@ const App = () => (
             <Route path="/borrowing-capacity" element={<BorrowingCapacity />} />
             <Route path="/mortgage-calculator" element={<MortgageCalculator />} />
             <Route path="/portfolio-manager" element={<PortfolioManager />} />
+            <Route path="/modelling-dashboard" element={<ModellingDashboard />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/admin-dashboard" element={<AdminDashboard />} />
             <Route path="/client-dashboard" element={<ClientDashboard />} />
-            <Route path="/modeling" element={<ModelingDashboard />} />
             <Route path="/property/:propertyId" element={<PropertyDetails />} />
             
             {/* Admin routes */}

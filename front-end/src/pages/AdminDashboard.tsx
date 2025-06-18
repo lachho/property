@@ -181,9 +181,9 @@ const AdminDashboard = () => {
           <div className="flex justify-between items-center mb-6">
             <h1 className="heading-lg">Admin Dashboard</h1>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => navigate('/modeling')}>
+              <Button variant="outline" onClick={() => navigate('/modelling-dashboard')}>
                 <LineChart className="w-4 h-4 mr-2" />
-                Modeling Dashboard
+                Modelling Dashboard
               </Button>
               <Button variant="outline" onClick={signOut}>Log Out</Button>
             </div>

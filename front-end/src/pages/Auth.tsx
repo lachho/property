@@ -24,7 +24,7 @@ const Auth = () => {
   const [phone, setPhone] = useState('');
   
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { signIn, signUp, user, isLoading } = useAuth();
+  const { signIn, signUp, user, isLoading, signInAsDemoUser } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -285,6 +285,18 @@ const Auth = () => {
                 </form>
               </TabsContent>
             </Tabs>
+            
+            <div className="p-4 text-center">
+              <p className="text-sm text-gray-500 mb-2">For demo purposes</p>
+              <div className="flex justify-center gap-4">
+                <Button variant="outline" size="sm" onClick={() => signInAsDemoUser('ADMIN')}>
+                  Login as Admin
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => signInAsDemoUser('CLIENT')}>
+                  Login as Client
+                </Button>
+              </div>
+            </div>
           </Card>
         </div>
       </main>
