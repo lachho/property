@@ -24,7 +24,7 @@ import DatabaseTest from "./pages/DatabaseTest";
 const queryClient = new QueryClient();
 
 const App = () => (
-  <BrowserRouter>
+  <BrowserRouter basename="/property/">
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <TooltipProvider>
